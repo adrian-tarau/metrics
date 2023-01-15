@@ -259,7 +259,7 @@ public abstract class Metrics implements Cloneable {
         try {
             Class<?> clazz = Metrics.class.getClassLoader().loadClass(METRICS_IMPLEMENTATION_CLASS);
             return (Metrics) clazz.getConstructor(String.class).newInstance(group);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return new NoMetrics(group);
         }
     }
