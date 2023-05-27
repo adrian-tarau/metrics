@@ -7,7 +7,8 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static net.microfalx.metrics.MetricsUtils.requireNonNull;
+import static net.microfalx.lang.ArgumentUtils.requireNonNull;
+import static net.microfalx.lang.ExceptionUtils.throwException;
 
 /**
  * An abstraction to track various metrics.
@@ -416,7 +417,7 @@ public abstract class Metrics implements Cloneable {
             try {
                 return callable.call();
             } catch (Exception e) {
-                return MetricsUtils.throwException(e);
+                return throwException(e);
             }
         }
 

@@ -12,7 +12,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static net.microfalx.metrics.MetricsUtils.requireNonNull;
+import static net.microfalx.lang.ArgumentUtils.requireNonNull;
+import static net.microfalx.lang.ExceptionUtils.throwException;
 
 public class MicrometerMetrics extends Metrics {
 
@@ -181,7 +182,7 @@ public class MicrometerMetrics extends Metrics {
                     try {
                         return callable.call();
                     } catch (Exception e) {
-                        return MetricsUtils.throwException(e);
+                        return throwException(e);
                     }
                 });
             } else {
@@ -189,7 +190,7 @@ public class MicrometerMetrics extends Metrics {
                     try {
                         return callable.call();
                     } catch (Exception e) {
-                        return MetricsUtils.throwException(e);
+                        return throwException(e);
                     }
                 });
             }
