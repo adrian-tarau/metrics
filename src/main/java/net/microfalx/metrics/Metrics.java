@@ -247,7 +247,7 @@ public abstract class Metrics implements Cloneable {
      * @return the resource to stop the timer
      */
     public Timer startTimer(String name) {
-        return getTimer(name).start();
+        return getTimer(name, Timer.Type.LONG).start();
     }
 
     /**
