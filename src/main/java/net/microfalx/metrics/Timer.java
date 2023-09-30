@@ -11,6 +11,19 @@ import java.util.function.Supplier;
 public interface Timer extends Meter, AutoCloseable {
 
     /**
+     * Returns the last started timer for the current thread.
+     * <p>
+     * If a timer does not exist, one will be returned with duration 0.
+     *
+     * @return a non-null instance
+     */
+    static Timer last() {
+        Timer timer = Metrics.LAST.get();
+        if (timer == null) Metrics.SYSTEM.getTimer("na");
+        return timer;
+    }
+
+    /**
      * Returns the type of the timer.
      *
      * @return a non-null enum

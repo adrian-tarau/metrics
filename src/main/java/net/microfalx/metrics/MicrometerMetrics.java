@@ -52,7 +52,9 @@ public class MicrometerMetrics extends Metrics {
         } else {
             timer = registry.more().longTaskTimer(finalName(name), mtags);
         }
-        return new TimerImpl(timer, type);
+        TimerImpl timerWrapper = new TimerImpl(timer, type);
+        Metrics.LAST.set(timerWrapper);
+        return timerWrapper;
     }
 
     @Override

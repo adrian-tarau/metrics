@@ -22,6 +22,9 @@ public abstract class Metrics implements Cloneable {
 
     private static final String METRICS_IMPLEMENTATION_CLASS = "net.microfalx.metrics.MicrometerMetrics";
     private static final String GROUP_SEPARATOR = ".";
+    public static final Metrics SYSTEM = Metrics.of("system");
+
+    static ThreadLocal<Timer> LAST = new ThreadLocal<>();
 
     private String group;
     protected Map<String, String> tags = new HashMap<>();
