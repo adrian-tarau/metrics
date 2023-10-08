@@ -139,6 +139,15 @@ public abstract class Metrics implements Cloneable {
     }
 
     /**
+     * Increments a counter within a group.
+     *
+     * @param name the name of the counter
+     */
+    public long count(String name, int delta) {
+        return getCounter(name).increment(delta);
+    }
+
+    /**
      * Increases a gauge by one.
      *
      * @param name the name of the counter
@@ -353,6 +362,11 @@ public abstract class Metrics implements Cloneable {
 
         @Override
         public long increment() {
+            return 0;
+        }
+
+        @Override
+        public long increment(int delta) {
             return 0;
         }
     }

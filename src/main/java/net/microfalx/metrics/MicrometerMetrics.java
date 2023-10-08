@@ -93,6 +93,12 @@ public class MicrometerMetrics extends Metrics {
             ((io.micrometer.core.instrument.Counter) meter).increment();
             return getValue();
         }
+
+        @Override
+        public long increment(int delta) {
+            ((io.micrometer.core.instrument.Counter) meter).increment(delta);
+            return getValue();
+        }
     }
 
     static class GaugeImpl extends MeterImpl implements Gauge {

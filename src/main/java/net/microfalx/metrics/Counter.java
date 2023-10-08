@@ -18,4 +18,12 @@ public interface Counter extends Meter {
      * @return a positive long
      */
     long increment();
+
+    /**
+     * Increments the counter by a delta.
+     *
+     * @param delta the delta
+     * @return the counter
+     */
+    long increment(int delta);
 }
