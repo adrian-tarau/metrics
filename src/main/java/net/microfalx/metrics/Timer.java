@@ -71,7 +71,7 @@ public interface Timer extends Meter, AutoCloseable {
      *
      * @param callable the callable
      */
-    <T> T record(Callable<T> callable);
+    <T> T recordCallable(Callable<T> callable);
 
     /**
      * Times a block of code.
@@ -81,16 +81,69 @@ public interface Timer extends Meter, AutoCloseable {
     void record(Runnable runnable);
 
     /**
+     * Wrap a {@link Runnable} so that it is timed when invoked.
+     *
+     * @param f the Runnable to time when it is invoked.
+     * @return The wrapped Runnable.
+     */
+    Runnable wrap(Runnable f);
+
+    /**
+     * Wrap a {@link Callable} so that it is timed when invoked.
+     *
+     * @param f   The Callable to time when it is invoked.
+     * @param <T> The return type of the callable.
+     * @return The wrapped callable.
+     */
+    <T> Callable<T> wrap(Callable<T> f);
+
+    /**
+     * Wrap a {@link Supplier} so that it is timed when invoked.
+     *
+     * @param f   The {@code Supplier} to time when it is invoked.
+     * @param <T> The return type of the {@code Supplier} result.
+     * @return The wrapped supplier.
+     * @since 1.2.0
+     */
+    <T> Supplier<T> wrap(Supplier<T> f);
+
+    /**
      * Returns the total duration.
      *
      * @return a non-null instance
      */
     Duration getDuration();
 
+    /**
+     * Returns the number of times this timer was invoked.
+     *
+     * @return a positive long
+     */
+    long getCount();
+
+    /**
+     * Returns the average duration across invocations.
+     *
+     * @return a non-null instance
+     */
+    Duration getAverageDuration();
+
+    /**
+     * Returns the minimum duration across invocations.
+     *
+     * @return a non-null instance
+     */
+    Duration getMinimumDuration();
+
+    /**
+     * Returns the maximum duration across invocations.
+     *
+     * @return a non-null instance
+     */
+    Duration getMaximumDuration();
+
     @Override
-    default void close() {
-        stop();
-    }
+    void close();
 
     enum Type {
         SHORT,

@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class MetricsTest {
 
-    private Metrics metrics = Metrics.of("metrics");
+    private Metrics metrics = Metrics.of("Test");
 
     @BeforeAll
     static void registerRegistry() {
@@ -19,7 +19,7 @@ class MetricsTest {
     @Test
     void count() {
         metrics.count("c1");
-        assertEquals(1, (long) io.micrometer.core.instrument.Metrics.counter("metrics.c1").count());
+        assertEquals(1, (long) io.micrometer.core.instrument.Metrics.counter("test.c1").count());
         metrics.count("c1");
         assertEquals(2, (long) io.micrometer.core.instrument.Metrics.counter("metrics.c1").count());
     }
@@ -35,7 +35,7 @@ class MetricsTest {
 
     @Test
     void timeShort() {
-        Timer timer = metrics.getTimer("metrics.t1");
+        Timer timer = metrics.getTimer("test.t1");
         metrics.time("t1", (t) -> sleep(200));
         //org.assertj.core.api.Assertions.assertThat(timer.getDuration().toMillis()).isGreaterThan(150).isLessThan(300);
     }

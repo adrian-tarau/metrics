@@ -6,19 +6,22 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.StringJoiner;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 import static net.microfalx.lang.ExceptionUtils.throwException;
+import static net.microfalx.metrics.MetricsUtils.computeId;
 
 public class MicrometerMetrics extends Metrics {
 
     private final MeterRegistry registry = io.micrometer.core.instrument.Metrics.globalRegistry;
-    private Iterable<Tag> mtags;
 
     public MicrometerMetrics(String group) {
         super(group);
@@ -27,61 +30,88 @@ public class MicrometerMetrics extends Metrics {
     @Override
     public Counter getCounter(String name) {
         requireNonNull(name);
-        io.micrometer.core.instrument.Counter counter = registry.counter(finalName(name), tagsArray);
-        return new CounterImpl(counter);
+        String id = computeId(getGroup(), name);
+        return counters.computeIfAbsent(id, s -> {
+            io.micrometer.core.instrument.Counter counter = registry.counter(id, getTags(name));
+            return new CounterImpl(this, name, counter);
+        });
     }
 
     @Override
     public Gauge getGauge(String name, Supplier<Double> supplier) {
-        registry.gauge(finalName(name), mtags, null, value -> supplier.get());
-        return new GaugeImpl(registry.find(name).gauge(), null, supplier);
+        String id = computeId(getGroup(), name);
+        return gauges.computeIfAbsent(id, s -> {
+            registry.gauge(id, getTags(name), null, value -> supplier.get());
+            return new GaugeImpl(this, name, registry.find(name).gauge(), null, supplier);
+        });
     }
 
     @Override
     public Gauge getGauge(String name) {
-        AtomicLong gauge = registry.gauge(finalName(name), new AtomicLong());
-        return new GaugeImpl(registry.find(name).gauge(), gauge, null);
+        String id = computeId(getGroup(), name);
+        return gauges.computeIfAbsent(id, s -> {
+            AtomicLong gauge = registry.gauge(id, new AtomicLong());
+            return new GaugeImpl(this, name, registry.find(name).gauge(), gauge, null);
+        });
     }
-
 
     @Override
     public Timer getTimer(String name, Timer.Type type) {
-        io.micrometer.core.instrument.Meter timer;
-        if (type == Timer.Type.SHORT) {
-            timer = registry.timer(finalName(name), mtags);
-        } else {
-            timer = registry.more().longTaskTimer(finalName(name), mtags);
-        }
-        TimerImpl timerWrapper = new TimerImpl(timer, type);
-        Metrics.LAST.set(timerWrapper);
-        return timerWrapper;
+        String id = computeId(getGroup(), name);
+        Timer finalTimer = timers.computeIfAbsent(id, s -> {
+            io.micrometer.core.instrument.Meter timer;
+            if (type == Timer.Type.SHORT) {
+                timer = registry.timer(id, getTags(name));
+            } else {
+                timer = registry.more().longTaskTimer(id, getTags(name));
+            }
+            return new TimerImpl(this, name, timer, type);
+        });
+        Metrics.LAST.set(finalTimer);
+        return finalTimer;
     }
 
-    @Override
-    protected void updateTagsCache() {
-        mtags = Tags.of(tagsArray);
+    private List<Tag> doGetTags() {
+        return this.getTags().entrySet().stream().map(e -> Tag.of(e.getKey(), e.getValue())).collect(Collectors.toList());
     }
 
-    static class MeterImpl implements Meter {
+    private Tags getTags(String name) {
+        List<Tag> tags = doGetTags();
+        tags.add(Tag.of(NAME_TAG, name));
+        return Tags.of(tags);
+    }
 
+    static class MeterImpl extends AbstractMeter {
+
+        private final Metrics metrics;
+        private final String name;
         protected final io.micrometer.core.instrument.Meter meter;
 
-        public MeterImpl(io.micrometer.core.instrument.Meter meter) {
+        public MeterImpl(Metrics metrics, String name, io.micrometer.core.instrument.Meter meter) {
+            super(metrics.getGroup(), name);
+            requireNonNull(metrics);
+            requireNonNull(name);
+            requireNonNull(meter);
+            this.metrics = metrics;
+            this.name = name;
             this.meter = meter;
         }
 
         @Override
-        public String getName() {
-            return meter.getId().getName();
+        public String toString() {
+            return new StringJoiner(", ", getClass().getSimpleName() + "[", "]")
+                    .add("metrics=" + metrics)
+                    .add("name='" + name + "'")
+                    .add("meter=" + meter)
+                    .toString();
         }
     }
 
     static class CounterImpl extends MeterImpl implements Counter {
 
-        public CounterImpl(io.micrometer.core.instrument.Meter meter) {
-            super(meter);
+        public CounterImpl(Metrics metrics, String name, io.micrometer.core.instrument.Meter meter) {
+            super(metrics, name, meter);
         }
-
 
         @Override
         public long getValue() {
@@ -90,12 +120,14 @@ public class MicrometerMetrics extends Metrics {
 
         @Override
         public long increment() {
+            touch();
             ((io.micrometer.core.instrument.Counter) meter).increment();
             return getValue();
         }
 
         @Override
         public long increment(int delta) {
+            touch();
             ((io.micrometer.core.instrument.Counter) meter).increment(delta);
             return getValue();
         }
@@ -106,19 +138,21 @@ public class MicrometerMetrics extends Metrics {
         private AtomicLong value;
         private Supplier<Double> supplier;
 
-        public GaugeImpl(io.micrometer.core.instrument.Meter meter, AtomicLong value, Supplier<Double> supplier) {
-            super(meter);
+        public GaugeImpl(Metrics metrics, String name, io.micrometer.core.instrument.Meter meter, AtomicLong value, Supplier<Double> supplier) {
+            super(metrics, name, meter);
             this.value = value;
             this.supplier = supplier;
         }
 
         @Override
         public long increment() {
+            touch();
             return value != null ? value.incrementAndGet() : 0;
         }
 
         @Override
         public long decrement() {
+            touch();
             return value != null ? value.decrementAndGet() : 0;
         }
 
@@ -133,8 +167,8 @@ public class MicrometerMetrics extends Metrics {
         private final Type type;
         private LongTaskTimer.Sample sample;
 
-        public TimerImpl(io.micrometer.core.instrument.Meter meter, Type type) {
-            super(meter);
+        public TimerImpl(Metrics metrics, String name, io.micrometer.core.instrument.Meter meter, Type type) {
+            super(metrics, name, meter);
             this.type = type;
         }
 
@@ -145,6 +179,7 @@ public class MicrometerMetrics extends Metrics {
 
         @Override
         public Timer start() {
+            touch();
             if (type != Type.LONG) throw new IllegalStateException("A short timer cannot be started manually");
             sample = ((io.micrometer.core.instrument.LongTaskTimer) meter).start();
             return this;
@@ -158,6 +193,7 @@ public class MicrometerMetrics extends Metrics {
 
         @Override
         public <T> T record(Supplier<T> supplier) {
+            touch();
             if (type == Type.SHORT) {
                 return ((io.micrometer.core.instrument.Timer) meter).record(supplier);
             } else {
@@ -167,6 +203,7 @@ public class MicrometerMetrics extends Metrics {
 
         @Override
         public void record(Consumer<Timer> consumer) {
+            touch();
             if (type == Type.SHORT) {
                 ((io.micrometer.core.instrument.Timer) meter).record(() -> consumer.accept(this));
             } else {
@@ -176,6 +213,7 @@ public class MicrometerMetrics extends Metrics {
 
         @Override
         public <T> void record(Consumer<T> consumer, T value) {
+            touch();
             if (type == Type.SHORT) {
                 ((io.micrometer.core.instrument.Timer) meter).record(() -> consumer.accept(value));
             } else {
@@ -184,7 +222,8 @@ public class MicrometerMetrics extends Metrics {
         }
 
         @Override
-        public <T> T record(Callable<T> callable) {
+        public <T> T recordCallable(Callable<T> callable) {
+            touch();
             if (type == Type.SHORT) {
                 return ((io.micrometer.core.instrument.Timer) meter).record(() -> {
                     try {
@@ -206,16 +245,97 @@ public class MicrometerMetrics extends Metrics {
 
         @Override
         public void record(Runnable runnable) {
+            touch();
+            if (meter instanceof LongTaskTimer) {
+                ((LongTaskTimer) meter).record(runnable);
+            } else {
+                ((io.micrometer.core.instrument.Timer) meter).totalTime(TimeUnit.MILLISECONDS);
+            }
+        }
 
+        @Override
+        public Runnable wrap(Runnable f) {
+            touch();
+            if (type == Type.SHORT) {
+                return ((io.micrometer.core.instrument.Timer) meter).wrap(f);
+            } else {
+                return throwWrappersNotSupported();
+            }
+        }
+
+        @Override
+        public <T> Callable<T> wrap(Callable<T> f) {
+            touch();
+            if (type == Type.SHORT) {
+                return ((io.micrometer.core.instrument.Timer) meter).wrap(f);
+            } else {
+                return throwWrappersNotSupported();
+            }
+        }
+
+        @Override
+        public <T> Supplier<T> wrap(Supplier<T> f) {
+            touch();
+            if (type == Type.SHORT) {
+                return ((io.micrometer.core.instrument.Timer) meter).wrap(f);
+            } else {
+                return throwWrappersNotSupported();
+            }
         }
 
         @Override
         public Duration getDuration() {
-            if (type == Type.SHORT) {
-                return Duration.ofMillis((long) ((io.micrometer.core.instrument.Timer) meter).totalTime(TimeUnit.MILLISECONDS));
-            } else {
+            if (meter instanceof LongTaskTimer) {
                 return Duration.ofMillis((long) ((LongTaskTimer) meter).duration(TimeUnit.MILLISECONDS));
+            } else {
+                return Duration.ofMillis((long) ((io.micrometer.core.instrument.Timer) meter).totalTime(TimeUnit.MILLISECONDS));
             }
+        }
+
+        @Override
+        public long getCount() {
+            if (meter instanceof LongTaskTimer) {
+                return -1;
+            } else {
+                return ((io.micrometer.core.instrument.Timer) meter).count();
+            }
+        }
+
+        @Override
+        public Duration getAverageDuration() {
+            if (meter instanceof LongTaskTimer) {
+                return Duration.ofMillis((long) ((LongTaskTimer) meter).mean(TimeUnit.MILLISECONDS));
+            } else {
+                return Duration.ofMillis((long) ((io.micrometer.core.instrument.Timer) meter).mean(TimeUnit.MILLISECONDS));
+            }
+        }
+
+        @Override
+        public Duration getMinimumDuration() {
+            return Duration.ofMillis(-1);
+        }
+
+        @Override
+        public Duration getMaximumDuration() {
+            if (meter instanceof LongTaskTimer) {
+                return Duration.ofMillis((long) ((LongTaskTimer) meter).max(TimeUnit.MILLISECONDS));
+            } else {
+                return Duration.ofMillis((long) ((io.micrometer.core.instrument.Timer) meter).max(TimeUnit.MILLISECONDS));
+            }
+        }
+
+        @SuppressWarnings("resource")
+        @Override
+        public void close() {
+            stop();
+        }
+
+        private <T> T throwWrappersNotSupported() {
+            return thrownUnsupported("Long timers do not support wrappers");
+        }
+
+        private <T> T thrownUnsupported(String name) {
+            throw new UnsupportedOperationException(name);
         }
     }
 }

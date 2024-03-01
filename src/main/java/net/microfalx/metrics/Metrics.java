@@ -1,14 +1,24 @@
 package net.microfalx.metrics;
 
+import net.microfalx.lang.StringUtils;
+
 import java.lang.module.ResolutionException;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
+import static java.lang.System.currentTimeMillis;
+import static java.util.Collections.unmodifiableCollection;
+import static java.util.Collections.unmodifiableMap;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 import static net.microfalx.lang.ExceptionUtils.throwException;
+import static net.microfalx.lang.StringUtils.capitalizeWords;
+import static net.microfalx.lang.TimeUtils.toLocalDateTime;
 
 /**
  * An abstraction to track various metrics.
@@ -21,14 +31,20 @@ import static net.microfalx.lang.ExceptionUtils.throwException;
 public abstract class Metrics implements Cloneable {
 
     private static final String METRICS_IMPLEMENTATION_CLASS = "net.microfalx.metrics.MicrometerMetrics";
-    private static final String GROUP_SEPARATOR = ".";
-    public static final Metrics SYSTEM = Metrics.of("system");
+    protected static final String GROUP_TAG = "group";
+    protected static final String NAME_TAG = "name";
 
+    static final Map<String, Metrics> METRICS = new ConcurrentHashMap<>();
+    protected final Map<String, Counter> counters = new ConcurrentHashMap<>();
+    protected final Map<String, Gauge> gauges = new ConcurrentHashMap<>();
+    protected final Map<String, Timer> timers = new ConcurrentHashMap<>();
     static ThreadLocal<Timer> LAST = new ThreadLocal<>();
 
+    public static final Metrics ROOT = Metrics.of("");
+    public static final Metrics SYSTEM = Metrics.of("System");
+
     private String group;
-    protected Map<String, String> tags = new HashMap<>();
-    protected String[] tagsArray = new String[0];
+    private Map<String, String> tags = new HashMap<>();
 
     /**
      * Returns an instance of a metric group.
@@ -36,7 +52,9 @@ public abstract class Metrics implements Cloneable {
      * @return a non-null instance
      */
     public static Metrics of(String group) {
-        return doCreate(group);
+        requireNonNull(group);
+        String id = StringUtils.toIdentifier(group);
+        return METRICS.computeIfAbsent(id, s -> doCreate(group));
     }
 
     /**
@@ -44,19 +62,10 @@ public abstract class Metrics implements Cloneable {
      *
      * @param group the group name
      */
-    public Metrics(String group) {
+    Metrics(String group) {
         requireNonNull(group);
-        this.group = group;
-    }
-
-    /**
-     * Returns the final name of a metrics within this group.
-     *
-     * @param name the name
-     * @return the final name
-     */
-    public String getName(String name) {
-        return finalName(name);
+        this.group = capitalizeWords(group);
+        this.tags.put(GROUP_TAG, group);
     }
 
     /**
@@ -74,7 +83,7 @@ public abstract class Metrics implements Cloneable {
      * @return a non-null instance
      */
     public Map<String, String> getTags() {
-        return Collections.unmodifiableMap(tags);
+        return unmodifiableMap(tags);
     }
 
     /**
@@ -86,14 +95,7 @@ public abstract class Metrics implements Cloneable {
     public void addTag(String key, String value) {
         requireNonNull(key);
         requireNonNull(value);
-
         tags.put(key, value);
-        Collection<String> values = new ArrayList<>();
-        for (Map.Entry<String, String> entry : tags.entrySet()) {
-            values.add(entry.getKey());
-            values.add(entry.getValue());
-        }
-        this.tagsArray = values.toArray(new String[0]);
     }
 
     /**
@@ -105,7 +107,7 @@ public abstract class Metrics implements Cloneable {
     public Metrics withGroup(String name) {
         requireNonNull(name);
         Metrics copy = copy();
-        copy.group += GROUP_SEPARATOR + name;
+        copy.group += MetricsUtils.GROUP_SEPARATOR + name;
         return copy;
     }
 
@@ -120,13 +122,6 @@ public abstract class Metrics implements Cloneable {
         Metrics copy = copy();
         copy.addTag(key, value);
         return copy;
-    }
-
-    /**
-     * Updates metrics specific tags.
-     */
-    protected void updateTagsCache() {
-        // empty on purpose
     }
 
     /**
@@ -181,8 +176,8 @@ public abstract class Metrics implements Cloneable {
      * @param name     the name of the timer
      * @param callable the callable
      */
-    public <T> T time(String name, Callable<T> callable) {
-        return getTimer(name, Timer.Type.SHORT).record(callable);
+    public <T> T timeCallable(String name, Callable<T> callable) {
+        return getTimer(name, Timer.Type.SHORT).recordCallable(callable);
     }
 
     /**
@@ -263,12 +258,70 @@ public abstract class Metrics implements Cloneable {
     }
 
     /**
+     * Returns a collection of counters active in this process.
+     *
+     * @return a non-null instance
+     */
+    public final Collection<Counter> getCounters() {
+        if (ROOT.equals(this)) {
+            return METRICS.values().stream().flatMap(metrics -> metrics.counters.values().stream()).collect(Collectors.toList());
+        } else {
+            return unmodifiableCollection(counters.values());
+        }
+    }
+
+    /**
+     * Returns a collection of gauges active in this process.
+     *
+     * @return a non-null instance
+     */
+    public final Collection<Gauge> getGauges() {
+        if (ROOT.equals(this)) {
+            return METRICS.values().stream().flatMap(metrics -> metrics.gauges.values().stream()).collect(Collectors.toList());
+        } else {
+            return unmodifiableCollection(gauges.values());
+        }
+    }
+
+    /**
+     * Returns a collection of timers active in this process.
+     *
+     * @return a non-null instance
+     */
+    public final Collection<Timer> getTimers() {
+        if (ROOT.equals(this)) {
+            return METRICS.values().stream().flatMap(metrics -> metrics.timers.values().stream()).collect(Collectors.toList());
+        } else {
+            return unmodifiableCollection(timers.values());
+        }
+    }
+
+    protected final <M extends Meter> M touch(M meter) {
+        if (meter instanceof AbstractMeter) ((AbstractMeter) meter).touch();
+        return meter;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Metrics metrics = (Metrics) o;
+        return Objects.equals(group, metrics.group);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(group);
+    }
+
+    /**
      * Creates the first available implementation of metrics.
      *
-     * @param group the group name
+     * @param group the group name, can be EMPTY for {@code root} group.
      * @return the instance
      */
     private static Metrics doCreate(String group) {
+        requireNonNull(group);
         try {
             Class<?> clazz = Metrics.class.getClassLoader().loadClass(METRICS_IMPLEMENTATION_CLASS);
             return (Metrics) clazz.getConstructor(String.class).newInstance(group);
@@ -286,24 +339,11 @@ public abstract class Metrics implements Cloneable {
         try {
             Metrics metrics = (Metrics) clone();
             metrics.tags = new HashMap<>(tags);
-            metrics.tagsArray = null;
             return metrics;
         } catch (CloneNotSupportedException e) {
             throw new ResolutionException("Cannot clone ", e);
         }
     }
-
-    protected final String finalName(String name) {
-        return normalize(group) + GROUP_SEPARATOR + normalize(name);
-    }
-
-    private static String normalize(String name) {
-        if (name == null) return "na";
-        name = name.toLowerCase();
-        name = name.replace(' ', '_');
-        return name;
-    }
-
 
     /**
      * Default implementation in case there is no other present.
@@ -316,43 +356,86 @@ public abstract class Metrics implements Cloneable {
 
         @Override
         public Counter getCounter(String name) {
-            return new NoCounter(name);
+            return new NoCounter(getGroup(), name);
         }
 
         @Override
         public Gauge getGauge(String name) {
-            return new NoGauge(name);
+            return new NoGauge(getGroup(), name);
         }
 
         @Override
         public Gauge getGauge(String name, Supplier<Double> supplier) {
-            return new NoGauge(name);
+            return new NoGauge(getGroup(), name);
         }
 
         @Override
         public Timer getTimer(String name, Timer.Type type) {
-            return new NoTimer(name);
+            return new NoTimer(getGroup(), name);
         }
     }
 
     static class AbstractMeter implements Meter {
 
+        private final String id;
         private final String name;
+        private final String group;
 
-        public AbstractMeter(String name) {
+        private volatile long firstAccess;
+        private volatile long lastAccess;
+
+        public AbstractMeter(String group, String name) {
+            requireNonNull(group);
+            requireNonNull(name);
+            this.id = MetricsUtils.computeId(group, name);
             this.name = name;
+            this.group = group;
         }
 
         @Override
-        public String getName() {
+        public final String getId() {
+            return id;
+        }
+
+        @Override
+        public final String getName() {
             return name;
+        }
+
+        @Override
+        public final String getGroup() {
+            return group;
+        }
+
+        @Override
+        public LocalDateTime getFirstAccess() {
+            return toLocalDateTime(firstAccess);
+        }
+
+        @Override
+        public LocalDateTime getLastAccess() {
+            return toLocalDateTime(lastAccess);
+        }
+
+        protected final void touch() {
+            if (firstAccess == 0) firstAccess = currentTimeMillis();
+            lastAccess = currentTimeMillis();
+        }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", getClass().getSimpleName() + "[", "]")
+                    .add("id='" + id + "'")
+                    .add("name='" + name + "'")
+                    .add("group='" + group + "'")
+                    .toString();
         }
     }
 
     static class NoCounter extends AbstractMeter implements Counter {
 
-        public NoCounter(String name) {
-            super(name);
+        public NoCounter(String group, String name) {
+            super(group, name);
         }
 
         @Override
@@ -373,8 +456,8 @@ public abstract class Metrics implements Cloneable {
 
     static class NoGauge extends AbstractMeter implements Gauge {
 
-        public NoGauge(String name) {
-            super(name);
+        public NoGauge(String group, String name) {
+            super(group, name);
         }
 
         @Override
@@ -395,8 +478,8 @@ public abstract class Metrics implements Cloneable {
 
     static class NoTimer extends AbstractMeter implements Timer {
 
-        public NoTimer(String name) {
-            super(name);
+        public NoTimer(String group, String name) {
+            super(group, name);
         }
 
         @Override
@@ -430,7 +513,7 @@ public abstract class Metrics implements Cloneable {
         }
 
         @Override
-        public <T> T record(Callable<T> callable) {
+        public <T> T recordCallable(Callable<T> callable) {
             try {
                 return callable.call();
             } catch (Exception e) {
@@ -446,6 +529,46 @@ public abstract class Metrics implements Cloneable {
         @Override
         public Duration getDuration() {
             return Duration.ZERO;
+        }
+
+        @Override
+        public long getCount() {
+            return 0;
+        }
+
+        @Override
+        public Duration getAverageDuration() {
+            return Duration.ZERO;
+        }
+
+        @Override
+        public Duration getMinimumDuration() {
+            return Duration.ZERO;
+        }
+
+        @Override
+        public Duration getMaximumDuration() {
+            return Duration.ZERO;
+        }
+
+        @Override
+        public Runnable wrap(Runnable f) {
+            return f;
+        }
+
+        @Override
+        public <T> Callable<T> wrap(Callable<T> f) {
+            return f;
+        }
+
+        @Override
+        public <T> Supplier<T> wrap(Supplier<T> f) {
+            return f;
+        }
+
+        @Override
+        public void close() {
+            // nothing to close
         }
     }
 }
