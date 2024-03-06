@@ -249,7 +249,7 @@ public class MicrometerMetrics extends Metrics {
             if (meter instanceof LongTaskTimer) {
                 ((LongTaskTimer) meter).record(runnable);
             } else {
-                ((io.micrometer.core.instrument.Timer) meter).totalTime(TimeUnit.MILLISECONDS);
+                ((io.micrometer.core.instrument.Timer) meter).record(runnable);
             }
         }
 
