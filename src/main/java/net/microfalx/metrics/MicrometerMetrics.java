@@ -286,9 +286,9 @@ public class MicrometerMetrics extends Metrics {
         @Override
         public Duration getDuration() {
             if (meter instanceof LongTaskTimer) {
-                return Duration.ofMillis((long) ((LongTaskTimer) meter).duration(TimeUnit.MILLISECONDS));
+                return Duration.ofNanos((long) ((LongTaskTimer) meter).duration(TimeUnit.NANOSECONDS));
             } else {
-                return Duration.ofMillis((long) ((io.micrometer.core.instrument.Timer) meter).totalTime(TimeUnit.MILLISECONDS));
+                return Duration.ofNanos((long) ((io.micrometer.core.instrument.Timer) meter).totalTime(TimeUnit.NANOSECONDS));
             }
         }
 
@@ -304,9 +304,9 @@ public class MicrometerMetrics extends Metrics {
         @Override
         public Duration getAverageDuration() {
             if (meter instanceof LongTaskTimer) {
-                return Duration.ofMillis((long) ((LongTaskTimer) meter).mean(TimeUnit.MILLISECONDS));
+                return Duration.ofNanos((long) ((LongTaskTimer) meter).mean(TimeUnit.NANOSECONDS));
             } else {
-                return Duration.ofMillis((long) ((io.micrometer.core.instrument.Timer) meter).mean(TimeUnit.MILLISECONDS));
+                return Duration.ofNanos((long) ((io.micrometer.core.instrument.Timer) meter).mean(TimeUnit.NANOSECONDS));
             }
         }
 
@@ -318,9 +318,9 @@ public class MicrometerMetrics extends Metrics {
         @Override
         public Duration getMaximumDuration() {
             if (meter instanceof LongTaskTimer) {
-                return Duration.ofMillis((long) ((LongTaskTimer) meter).max(TimeUnit.MILLISECONDS));
+                return Duration.ofNanos((long) ((LongTaskTimer) meter).max(TimeUnit.NANOSECONDS));
             } else {
-                return Duration.ofMillis((long) ((io.micrometer.core.instrument.Timer) meter).max(TimeUnit.MILLISECONDS));
+                return Duration.ofNanos((long) ((io.micrometer.core.instrument.Timer) meter).max(TimeUnit.NANOSECONDS));
             }
         }
 
