@@ -42,7 +42,7 @@ public class MicrometerMetrics extends Metrics {
         String id = computeId(getGroup(), name);
         return gauges.computeIfAbsent(id, s -> {
             registry.gauge(id, getTags(name), null, value -> supplier.get());
-            return new GaugeImpl(this, name, registry.find(name).gauge(), null, supplier);
+            return new GaugeImpl(this, name, registry.find(id).gauge(), null, supplier);
         });
     }
 
@@ -51,7 +51,7 @@ public class MicrometerMetrics extends Metrics {
         String id = computeId(getGroup(), name);
         return gauges.computeIfAbsent(id, s -> {
             AtomicLong gauge = registry.gauge(id, new AtomicLong());
-            return new GaugeImpl(this, name, registry.find(name).gauge(), gauge, null);
+            return new GaugeImpl(this, name, registry.find(id).gauge(), gauge, null);
         });
     }
 
@@ -147,13 +147,13 @@ public class MicrometerMetrics extends Metrics {
         @Override
         public long increment() {
             touch();
-            return value != null ? value.incrementAndGet() : 0;
+            return value != null ? value.incrementAndGet() : (long) (double) supplier.get();
         }
 
         @Override
         public long decrement() {
             touch();
-            return value != null ? value.decrementAndGet() : 0;
+            return value != null ? value.decrementAndGet() : (long) (double) supplier.get();
         }
 
         @Override
