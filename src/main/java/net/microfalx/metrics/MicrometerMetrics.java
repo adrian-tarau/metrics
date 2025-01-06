@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 import static net.microfalx.lang.ExceptionUtils.throwException;
-import static net.microfalx.metrics.MetricsUtils.computeId;
+import static net.microfalx.metrics.MetricUtils.computeId;
 
 public class MicrometerMetrics extends Metrics {
 

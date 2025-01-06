@@ -107,7 +107,7 @@ public abstract class Metrics implements Cloneable {
     public Metrics withGroup(String name) {
         requireNonNull(name);
         Metrics copy = copy();
-        copy.group += MetricsUtils.GROUP_SEPARATOR + name;
+        copy.group += MetricUtils.GROUP_SEPARATOR + name;
         return copy;
     }
 
@@ -387,7 +387,7 @@ public abstract class Metrics implements Cloneable {
         public AbstractMeter(String group, String name) {
             requireNonNull(group);
             requireNonNull(name);
-            this.id = MetricsUtils.computeId(group, name);
+            this.id = MetricUtils.computeId(group, name);
             this.name = name;
             this.group = group;
         }
