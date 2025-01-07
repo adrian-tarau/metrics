@@ -168,18 +168,24 @@ public class Aggregation {
                 counts.merge(timestamp, 1, Integer::sum);
             }
             values.merge(timestamp, value, (oldValue, newValue) -> {
-                return switch (type) {
-                    case MIN -> oldValue.getValue() > newValue.getValue() ? newValue : oldValue;
-                    case MAX -> oldValue.getValue() < newValue.getValue() ? newValue : oldValue;
-                    case SUM, AVG -> oldValue.add(newValue.getValue());
-                };
+                switch (type) {
+                    case MIN:
+                        return oldValue.getValue() > newValue.getValue() ? newValue : oldValue;
+                    case MAX:
+                        return oldValue.getValue() < newValue.getValue() ? newValue : oldValue;
+                    case SUM:
+                    case AVG:
+                        return oldValue.add(newValue.getValue());
+                    default:
+                        throw new IllegalStateException("Unhandled type: " + type);
+                }
             });
         }
 
         private void merge(TimeSeries timeSeries) {
             if (!metric.equals(timeSeries.metric))
                 throw new MetricException("Cannot merge two time-series with different metrics, " +
-                        ", source: " + timeSeries.metric + ", target: " + metric);
+                                          ", source: " + timeSeries.metric + ", target: " + metric);
             for (Value value : timeSeries.values.values()) {
                 add(value);
             }

@@ -46,8 +46,8 @@ public class SeriesMemoryStore implements SeriesStore {
         requireNonNull(metric);
         synchronized (this) {
             Series series = getOrCreate(metric);
-            if (series instanceof DefaultSeries defaultSeries) {
-                defaultSeries.doAdd(value);
+            if (series instanceof DefaultSeries) {
+                ((DefaultSeries)series).doAdd(value);
             } else {
                 series = series.add(value);
                 this.series.put(metric, series);
