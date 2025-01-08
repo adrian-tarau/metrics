@@ -1,31 +1,29 @@
 package net.microfalx.metrics;
 
 import net.microfalx.lang.Hashing;
-import net.microfalx.lang.Identifiable;
-import net.microfalx.lang.Nameable;
+import net.microfalx.lang.NamedIdentityAware;
+import net.microfalx.lang.StringUtils;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableCollection;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 import static net.microfalx.lang.ArgumentUtils.requireNotEmpty;
+import static net.microfalx.lang.StringUtils.capitalizeWords;
 import static net.microfalx.lang.StringUtils.toIdentifier;
 
 /**
  * A metric and its labels (dimensions).
  */
-public class Metric implements Identifiable<String>, Nameable {
+public class Metric extends NamedIdentityAware<String> {
 
     public static String UNNAMED = "UNNAMED";
     private static final int MAX_CACHE_SIZE = 10_000;
 
-    private final String id;
-    private final String name;
+    private String group;
+    private String displayName;
     private final String hash;
     private final Map<String, String> labels;
 
@@ -117,20 +115,64 @@ public class Metric implements Identifiable<String>, Nameable {
 
     Metric(String name, Map<String, String> labels, String hash) {
         requireNotEmpty(name);
-        this.id = toIdentifier(name);
-        this.name = name;
+        setId(toIdentifier(name));
+        setName(name);
+        this.displayName = capitalizeWords(name);
         this.hash = hash != null ? hash : calculateHash(name, labels);
         this.labels = labels != null ? new HashMap<>(labels) : Map.of();
     }
 
-    @Override
-    public String getId() {
-        return id;
+    /**
+     * Returns the group for the metric.
+     *
+     * @return the group, null if not group
+     */
+    public String getGroup() {
+        return group;
     }
 
-    @Override
-    public String getName() {
-        return name;
+    /**
+     * Creates a new metrics with a different group.
+     *
+     * @param group the display name
+     * @return a non-null instance
+     */
+    public Metric withGroup(String group) {
+        requireNonNull(group);
+        Metric copy = (Metric) copy();
+        copy.group = group;
+        return copy;
+    }
+
+    /**
+     * Returns the display name.
+     *
+     * @return a non-null instance
+     */
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    /**
+     * Returns the full display name.
+     *
+     * @return a non-null instance
+     */
+    public String getFullDisplayName() {
+        return StringUtils.isNotEmpty(group) ? group + " / " + displayName : displayName;
+    }
+
+    /**
+     * Creates a new metrics with a different display name.
+     *
+     * @param displayName the display name
+     * @return a non-null instance
+     */
+    public Metric withDisplayName(String displayName) {
+        requireNonNull(displayName);
+        Metric copy = (Metric) copy();
+        copy.displayName = displayName;
+        return copy;
     }
 
     /**
@@ -184,6 +226,18 @@ public class Metric implements Identifiable<String>, Nameable {
     @Override
     public int hashCode() {
         return Objects.hash(hash);
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", Metric.class.getSimpleName() + "[", "]")
+                .add("id='" + getId() + "'")
+                .add("name='" + getName() + "'")
+                .add("group='" + group + "'")
+                .add("displayName='" + displayName + "'")
+                .add("hash='" + hash + "'")
+                .add("labels=" + labels)
+                .toString();
     }
 
     private static String calculateHash(String name, Map<String, String> labels) {
