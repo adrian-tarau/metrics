@@ -16,12 +16,20 @@ public class MetricUtils {
     public static final String GROUP_SEPARATOR = " - ";
     public static final String ID_SEPARATOR = ".";
 
-    private static volatile SeriesStore seriesStore;
+     static volatile SeriesStore defaultStore;
 
     static SeriesStore create() {
         Collection<SeriesStore> seriesStores = ClassUtils.resolveProviderInstances(SeriesStore.class);
         if (seriesStores.isEmpty()) throw new IllegalStateException("A series store implementation cannot be provided");
         return seriesStores.iterator().next();
+    }
+
+    static SeriesStore getDefault() {
+        if (defaultStore != null) return defaultStore;
+        synchronized (MetricUtils.class) {
+            defaultStore = create();
+        }
+        return defaultStore;
     }
 
     /**

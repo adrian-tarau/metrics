@@ -5,29 +5,28 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static java.util.Collections.unmodifiableList;
 import static net.microfalx.lang.CollectionUtils.toList;
 
 /**
  * A default implementation which holds all values in a list.
  */
 @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "OptionalAssignedToNull"})
-public class DefaultSeries extends AbstractSeries {
+class DefaultSeries extends AbstractSeries {
 
     private final List<Value> values;
 
-    private OptionalDouble average;
-    private OptionalDouble minimum;
-    private OptionalDouble maximum;
+    private volatile OptionalDouble average;
+    private volatile OptionalDouble minimum;
+    private volatile OptionalDouble maximum;
 
-    private double weight = Double.MIN_VALUE;
+    private volatile double weight = Double.MIN_VALUE;
 
-    static Series random(String name, LocalDateTime start, Duration interval, int count, double min, double max) {
+    static Series random(String name, LocalDateTime start, Duration interval, int count, float min, float max) {
         Random random = ThreadLocalRandom.current();
         List<Value> values = new ArrayList<>();
-        double range = max - min;
+        float range = max - min;
         for (int i = 0; i < count; i++) {
-            values.add(Value.create(start, (float) (min + random.nextDouble(range))));
+            values.add(Value.create(start, min + range * random.nextFloat()));
             start = start.plus(interval);
         }
         return Series.create(name, values);
@@ -40,72 +39,128 @@ public class DefaultSeries extends AbstractSeries {
     }
 
     public List<Value> getValues() {
-        return unmodifiableList(values);
+        rlock.lock();
+        try {
+            return new ArrayList<>(values);
+        } finally {
+            rlock.unlock();
+        }
     }
 
     public Value get(int index) {
-        return values.get(index);
+        rlock.lock();
+        try {
+            return values.get(index);
+        } finally {
+            rlock.unlock();
+        }
     }
 
     public int getCount() {
-        return values.size();
+        rlock.lock();
+        try {
+            return values.size();
+        } finally {
+            rlock.unlock();
+        }
     }
 
     @Override
     public boolean isEmpty() {
-        return values.isEmpty();
+        rlock.lock();
+        try {
+            return values.isEmpty();
+        } finally {
+            rlock.unlock();
+        }
     }
 
     public Optional<Value> getFirst() {
-        return values.isEmpty() ? Optional.empty() : Optional.of(values.get(0));
+        rlock.lock();
+        try {
+            return values.isEmpty() ? Optional.empty() : Optional.of(values.get(0));
+        } finally {
+            rlock.unlock();
+        }
     }
 
     public Optional<Value> getLast() {
-        return values.isEmpty() ? Optional.empty() : Optional.of(values.get(values.size() - 1));
+        rlock.lock();
+        try {
+            return values.isEmpty() ? Optional.empty() : Optional.of(values.get(values.size() - 1));
+        } finally {
+            rlock.unlock();
+        }
     }
 
     public OptionalDouble getAverage() {
         if (average == null) {
-            average = values.stream().mapToDouble(Value::asDouble).average();
+            rlock.lock();
+            try {
+                average = values.stream().mapToDouble(Value::asDouble).average();
+            } finally {
+                rlock.unlock();
+            }
         }
         return average;
     }
 
     public OptionalDouble getMinimum() {
         if (minimum == null) {
-            minimum = values.stream().mapToDouble(Value::asDouble).min();
+            rlock.lock();
+            try {
+                minimum = values.stream().mapToDouble(Value::asDouble).min();
+            } finally {
+                rlock.unlock();
+            }
         }
         return minimum;
     }
 
     public OptionalDouble getMaximum() {
         if (maximum == null) {
-            maximum = values.stream().mapToDouble(Value::asDouble).max();
+            rlock.lock();
+            try {
+                maximum = values.stream().mapToDouble(Value::asDouble).max();
+            } finally {
+                rlock.unlock();
+            }
         }
         return maximum;
     }
 
     public double getWeight() {
         if (weight == Double.MIN_VALUE) {
-            weight = getMaximum().orElse(0) / values.size();
+            rlock.lock();
+            try {
+                weight = getMaximum().orElse(0) / values.size();
+            } finally {
+                rlock.unlock();
+            }
         }
         return weight;
     }
 
     @Override
     public Series add(Value value) {
-        List<Value> newValues = new ArrayList<>(values);
-        newValues.add(value);
-        return new DefaultSeries(getName(), newValues);
-    }
-
-    void doAdd(Value value) {
-        this.values.add(value);
+        wlock.lock();
+        try {
+            values.add(value);
+        } finally {
+            wlock.unlock();
+        }
+        return this;
     }
 
     @Override
     public Series compact() {
-        byte[] data = CompactSeries.compact(values);
+        byte[] data;
+        rlock.lock();
+        try {
+            data = CompactSeries.compact(values);
+        } finally {
+            rlock.unlock();
+        }
         return new CompactSeries(getName(), data);
     }
 }

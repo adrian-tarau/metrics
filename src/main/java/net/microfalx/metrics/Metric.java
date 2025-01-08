@@ -89,6 +89,18 @@ public class Metric implements Identifiable<String>, Nameable {
     }
 
     /**
+     * Creates a metric.
+     * <p>
+     * The method returns a cached metric if one is available.
+     *
+     * @param name the metric name
+     * @return a non-null instance
+     */
+    public static Metric get(String name) {
+        return get(name, emptyMap());
+    }
+
+    /**
      * Creates a metric with multiple labels.
      * <p>
      * The method returns a cached metric if one is available.

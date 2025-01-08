@@ -58,9 +58,24 @@ public interface Series extends Identifiable<String>, Nameable {
      * @param max      the maximum value
      * @return the series
      */
-    static Series random(String name, LocalDateTime start, Duration interval, int count, double min, double max) {
+    static Series random(String name, LocalDateTime start, Duration interval, int count, float min, float max) {
         return DefaultSeries.random(name, start, interval, count, min, max);
     }
+
+    /**
+     * Returns the retention of this store.
+     *
+     * @return a non-null instance
+     */
+    Duration getRetention();
+
+    /**
+     * Changes the retention of this store.
+     *
+     * @param retention the new retention
+     * @return a new instance
+     */
+    Series setRetention(Duration retention);
 
     /**
      * Return a list of values.

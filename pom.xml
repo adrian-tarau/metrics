@@ -57,7 +57,7 @@
 
     <properties>
         <java.version>11</java.version>
-        <bom.version>1.0.5</bom.version>
+        <bom.version>1.0.6</bom.version>
         <lang.version>0.8.1-SNAPSHOT</lang.version>
     </properties>
 
@@ -107,6 +107,11 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
         </dependency>
 
         <!-- Tests -->

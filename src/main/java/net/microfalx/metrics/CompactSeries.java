@@ -9,10 +9,10 @@ import java.util.*;
 import static net.microfalx.lang.ArgumentUtils.requireBounded;
 
 @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "OptionalAssignedToNull"})
-public class CompactSeries extends AbstractSeries {
+class CompactSeries extends AbstractSeries {
 
     private static final int HEADER_SIZE = 4;
-    private static final int VALUE_SIZE = 8;
+    private static final int VALUE_SIZE = 4 + 8;
     private static final byte[] SIGNATURE = {(byte) 0xA3, (byte) 0x98};
 
     private final byte[] data;
@@ -138,7 +138,7 @@ public class CompactSeries extends AbstractSeries {
     }
 
     static void write(DataOutputStream dout, Value value) throws IOException {
-        dout.writeInt(value.timestamp);
+        dout.writeLong(value.timestamp);
         dout.writeFloat(value.value);
     }
 

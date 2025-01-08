@@ -3,9 +3,8 @@ package net.microfalx.metrics;
 import net.microfalx.lang.TimeUtils;
 import net.microfalx.lang.Timestampable;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
+import java.time.temporal.Temporal;
 
 import static java.lang.System.currentTimeMillis;
 import static java.time.Instant.ofEpochMilli;
@@ -15,10 +14,7 @@ import static java.time.Instant.ofEpochMilli;
  */
 public class Value implements Timestampable<Instant> {
 
-    private static final long MILLIS_SINCE_2020 = LocalDateTime.of(2024, 1, 1, 0, 0)
-            .toInstant(ZoneOffset.UTC).toEpochMilli();
-
-    final int timestamp;
+    final long timestamp;
     final float value;
 
     /**
@@ -58,18 +54,13 @@ public class Value implements Timestampable<Instant> {
     }
 
     Value(long timestamp, float value) {
-        this.timestamp = timestamp > MILLIS_SINCE_2020 ? (int) (timestamp - MILLIS_SINCE_2020) : (int) timestamp;
-        this.value = value;
-    }
-
-    Value(int timestamp, float value) {
         this.timestamp = timestamp;
         this.value = value;
     }
 
     @Override
     public Instant getCreatedAt() {
-        return Instant.ofEpochMilli(getTimestamp());
+        return ofEpochMilli(getTimestamp());
     }
 
     /**
@@ -96,16 +87,39 @@ public class Value implements Timestampable<Instant> {
      * @return a non-null instance
      */
     public Instant atInstant() {
-        return ofEpochMilli(timestamp);
+        return ofEpochMilli(getTimestamp());
     }
 
     /**
-     * Returns the timestamp as a date/time.
+     * Returns the timestamp as a local date/time.
      *
      * @return a non-null instance
      */
-    public LocalDateTime atDateTime() {
-        return TimeUtils.toLocalDateTime(timestamp);
+    public LocalDateTime atLocalTime() {
+        return atInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+    }
+
+    /**
+     * Returns the timestamp as a zoned date/time.
+     *
+     * @return a non-null instance
+     */
+    public ZonedDateTime atZonedTime() {
+        return atInstant().atZone(ZoneOffset.UTC);
+    }
+
+    /**
+     * Returns whether the value is withing a range.
+     *
+     * @param from the start of the interval, can be null
+     * @param to   the end of the interval, can be null
+     * @return {@code true} if within interval, {@code false} otherwise
+     */
+    public boolean isWithin(Temporal from, Temporal to) {
+        long timestamp1 = getTimestamp();
+        if (from != null && TimeUtils.toMillis(from) > timestamp1) return false;
+        if (to != null && TimeUtils.toMillis(to) < timestamp1) return false;
+        return true;
     }
 
     /**
