@@ -17,7 +17,7 @@ import static net.microfalx.lang.StringUtils.toIdentifier;
 /**
  * A metric and its labels (dimensions).
  */
-public class Metric extends NamedIdentityAware<String> {
+public class Metric extends NamedIdentityAware<String> implements Comparable<Metric> {
 
     public static String UNNAMED = "UNNAMED";
     private static final int MAX_CACHE_SIZE = 10_000;
@@ -111,6 +111,11 @@ public class Metric extends NamedIdentityAware<String> {
         String hash = calculateHash(name, labels);
         if (METRIC_CACHE.size() > MAX_CACHE_SIZE) METRIC_CACHE.clear();
         return METRIC_CACHE.computeIfAbsent(hash, s -> new Metric(name, labels, hash));
+    }
+
+    protected Metric() {
+        hash = calculateHash(UNNAMED, emptyMap());
+        labels = emptyMap();
     }
 
     Metric(String name, Map<String, String> labels, String hash) {
@@ -213,6 +218,11 @@ public class Metric extends NamedIdentityAware<String> {
     public boolean hasLabel(String name) {
         requireNonNull(name);
         return labels.containsKey(name);
+    }
+
+    @Override
+    public int compareTo(Metric o) {
+        return getId().compareTo(o.getId());
     }
 
     @Override

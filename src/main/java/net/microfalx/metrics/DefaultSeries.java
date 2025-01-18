@@ -1,17 +1,20 @@
 package net.microfalx.metrics;
 
+import net.microfalx.lang.StringUtils;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static java.util.Collections.emptyList;
 import static net.microfalx.lang.CollectionUtils.toList;
 
 /**
  * A default implementation which holds all values in a list.
  */
 @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "OptionalAssignedToNull"})
-class DefaultSeries extends AbstractSeries {
+public class DefaultSeries extends AbstractSeries {
 
     private final List<Value> values;
 
@@ -30,6 +33,10 @@ class DefaultSeries extends AbstractSeries {
             start = start.plus(interval);
         }
         return Series.create(name, values);
+    }
+
+    protected DefaultSeries() {
+        this(StringUtils.NA_STRING, emptyList());
     }
 
     DefaultSeries(String name, Iterable<Value> values) {

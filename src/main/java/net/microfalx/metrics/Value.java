@@ -53,6 +53,10 @@ public class Value implements Timestampable<Instant> {
         return new Value(timestamp, value);
     }
 
+    protected Value() {
+        this(currentTimeMillis(), 0);
+    }
+
     Value(long timestamp, float value) {
         this.timestamp = timestamp;
         this.value = value;

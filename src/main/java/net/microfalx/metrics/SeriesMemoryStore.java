@@ -6,7 +6,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.time.temporal.Temporal;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 import static java.util.Collections.unmodifiableSet;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
@@ -16,9 +16,12 @@ import static net.microfalx.lang.ArgumentUtils.requireNonNull;
  */
 @Provider
 @Order(Order.AFTER)
-class SeriesMemoryStore extends AbstractSeriesStore {
+public class SeriesMemoryStore extends AbstractSeriesStore {
 
-    private final Map<Metric, Series> series = new ConcurrentHashMap<>();
+    private final Map<Metric, Series> series = new ConcurrentSkipListMap<>();
+
+    protected SeriesMemoryStore() {
+    }
 
     @Override
     public Set<Metric> getMetrics() {

@@ -19,9 +19,9 @@ abstract class AbstractSeries extends NamedIdentityAware<String> implements Seri
 
     private volatile Duration retention = ofMinutes(15);
 
-    protected final ReadWriteLock lock = new ReentrantReadWriteLock();
-    protected final Lock rlock = lock.readLock();
-    protected final Lock wlock = lock.writeLock();
+    protected final transient ReadWriteLock lock = new ReentrantReadWriteLock();
+    protected final transient Lock rlock = lock.readLock();
+    protected final transient Lock wlock = lock.writeLock();
 
     public AbstractSeries(String name) {
         setId(MetricUtils.nextId("series"));
