@@ -54,15 +54,18 @@ public class SeriesMemoryStore extends AbstractSeriesStore {
     public void add(Metric metric, Value value) {
         requireNonNull(metric);
         Series series = getOrCreate(metric);
-        series.add(value);
+        value = adaptValue(metric, value);
+        if (value != null) series.add(value);
     }
 
     @Override
     public void add(Batch batch) {
         requireNonNull(batch);
         for (Pair<Metric, Value> value : batch) {
-            Series series = getOrCreate(value.getKey());
-            series.add(value.getValue());
+            Metric metric = value.getKey();
+            Series series = getOrCreate(metric);
+            Value adaptedValue = adaptValue(metric, value.getValue());
+            if (adaptedValue != null) series.add(adaptedValue);
         }
     }
 

@@ -141,7 +141,7 @@ public class Value implements Timestampable<Instant> {
      * @return the value
      */
     public float asFloat() {
-        return (float) value;
+        return value;
     }
 
     /**

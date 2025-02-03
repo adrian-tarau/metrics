@@ -26,6 +26,7 @@ public class Metric extends NamedIdentityAware<String> implements Comparable<Met
     private String displayName;
     private final String hash;
     private final Map<String, String> labels;
+    private Type type = Type.GAUGE;
 
     private static final Map<String, Metric> METRIC_CACHE = new ConcurrentHashMap<>();
 
@@ -125,6 +126,28 @@ public class Metric extends NamedIdentityAware<String> implements Comparable<Met
         this.displayName = capitalizeWords(name);
         this.hash = hash != null ? hash : calculateHash(name, labels);
         this.labels = labels != null ? new HashMap<>(labels) : Map.of();
+    }
+
+    /**
+     * Returns the type of metrics.
+     *
+     * @return a non-null instance
+     */
+    public Type getType() {
+        return type;
+    }
+
+    /**
+     * Creates a new metrics with a different type.
+     *
+     * @param type the type
+     * @return a non-null instance
+     */
+    public Metric withType(Type type) {
+        requireNonNull(type);
+        Metric copy = (Metric) copy();
+        copy.type = type;
+        return copy;
     }
 
     /**
@@ -256,5 +279,10 @@ public class Metric extends NamedIdentityAware<String> implements Comparable<Met
         hashing.update(id);
         hashing.update(labels);
         return id + "_" + hashing.asString();
+    }
+
+    public enum Type {
+        COUNTER,
+        GAUGE
     }
 }
