@@ -36,6 +36,11 @@ public abstract class AbstractSeriesStore implements SeriesStore {
         return getAverage(metric, now.minus(interval), now);
     }
 
+    @Override
+    public OptionalDouble getAverage(Metric metric) {
+        return getAverage(metric, Duration.ofDays(1));
+    }
+
     protected final Value adaptValue(Metric metric, Value value) {
         if (metric.getType() == Metric.Type.COUNTER) {
             Value previousValue = lastValues.get(metric);

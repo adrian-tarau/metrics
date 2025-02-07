@@ -110,6 +110,14 @@ public interface SeriesStore {
     OptionalDouble getAverage(Metric metric, Duration interval);
 
     /**
+     * Returns the average for a given metric.
+     *
+     * @param metric   the metric
+     * @return the average
+     */
+    OptionalDouble getAverage(Metric metric);
+
+    /**
      * Adds a new value to this series.
      *
      * @param metric the metric
