@@ -170,10 +170,17 @@ public interface SeriesStore extends Comparable<SeriesStore> {
     void clear();
 
     /**
+     * Adds all metrics from a given store to this store.
+     *
+     * @param store the other store
+     */
+    void add(SeriesStore store);
+
+    /**
      * Adds all metrics from a given series into this series.
      *
      * @param average {@code true} to add the average of the metrics, {@code false} all values
-     * @param series the series
+     * @param series  the series
      */
     void add(Collection<SeriesStore> series, boolean average);
 }

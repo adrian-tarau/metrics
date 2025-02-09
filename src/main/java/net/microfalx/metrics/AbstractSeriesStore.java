@@ -84,6 +84,12 @@ public abstract class AbstractSeriesStore implements SeriesStore {
     }
 
     @Override
+    public void add(SeriesStore store) {
+        requireNonNull(store);
+        add(Collections.singleton(store), false);
+    }
+
+    @Override
     public void add(Collection<SeriesStore> seriesStores, boolean average) {
         requireNonNull(seriesStores);
         Set<Metric> metrics = seriesStores.isEmpty() ? Collections.emptySet() : seriesStores.iterator().next().getMetrics();
