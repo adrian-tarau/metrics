@@ -1,5 +1,6 @@
 package net.microfalx.metrics;
 
+import com.esotericsoftware.kryo.DefaultSerializer;
 import net.microfalx.lang.Hashing;
 import net.microfalx.lang.NamedIdentityAware;
 import net.microfalx.lang.StringUtils;
@@ -17,6 +18,7 @@ import static net.microfalx.lang.StringUtils.toIdentifier;
 /**
  * A metric and its labels (dimensions).
  */
+@DefaultSerializer(MetricSerializer.class)
 public class Metric extends NamedIdentityAware<String> implements Comparable<Metric> {
 
     public static String UNNAMED = "UNNAMED";
@@ -25,7 +27,7 @@ public class Metric extends NamedIdentityAware<String> implements Comparable<Met
     private String group;
     private String displayName;
     private final String hash;
-    private final Map<String, String> labels;
+    final Map<String, String> labels;
     private Type type = Type.GAUGE;
 
     private static final Map<String, Metric> METRIC_CACHE = new ConcurrentHashMap<>();
@@ -271,6 +273,13 @@ public class Metric extends NamedIdentityAware<String> implements Comparable<Met
                 .add("hash='" + hash + "'")
                 .add("labels=" + labels)
                 .toString();
+    }
+
+    void update(Type type, String group, String displayName, String description) {
+        this.type = type;
+        setDescription(description);
+        this.group = group;
+        this.displayName = displayName;
     }
 
     private static String calculateHash(String name, Map<String, String> labels) {

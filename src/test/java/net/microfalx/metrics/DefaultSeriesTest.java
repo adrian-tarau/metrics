@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class DefaultSeriesTest {
 
+    private static final long START_TIMESTAMP = System.currentTimeMillis();
+
     @Test
     void create() {
         Series series = new DefaultSeries("test", List.of(Value.create(1, 1), Value.create(2, 2)));
@@ -64,6 +66,28 @@ class DefaultSeriesTest {
     }
 
     @Test
+    public void addSeries() {
+        Series target = createDefault();
+        assertEquals(4, target.getCount());
+        Series source = createDefault();
+        assertEquals(4.5, source.getAverage().getAsDouble(), 0.001);
+        target.add(source);
+        assertEquals(8, target.getCount());
+        assertEquals(4.5, target.getAverage().getAsDouble(), 0.001);
+    }
+
+    @Test
+    public void addAverageSeries() {
+        Series target = createDefault();
+        assertEquals(4, target.getCount());
+        Series source = createDefault();
+        assertEquals(4.5, source.getAverage().getAsDouble(), 0.001);
+        target.addAverage(source);
+        assertEquals(5, target.getCount());
+        assertEquals(4.5, target.getAverage().getAsDouble(), 0.001);
+    }
+
+    @Test
     public void weight() {
         Series series = createDefault();
         assertEquals(2.5, series.getWeight(), 0.001);
@@ -77,9 +101,9 @@ class DefaultSeriesTest {
     }
 
     private DefaultSeries createDefault() {
-        return new DefaultSeries("test", List.of(Value.create(1, 1),
-                Value.create(2, 2), Value.create(3, 5),
-                Value.create(4, 10)));
+        return new DefaultSeries("test", List.of(Value.create(START_TIMESTAMP, 1),
+                Value.create(START_TIMESTAMP + 2, 2), Value.create(START_TIMESTAMP + 3, 5),
+                Value.create(START_TIMESTAMP + 4, 10)));
     }
 
 }

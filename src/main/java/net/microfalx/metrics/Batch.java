@@ -45,7 +45,6 @@ public class Batch implements Iterable<Pair<Metric, Value>> {
      */
     public void add(Metric metric, float value) {
         requireNonNull(metric);
-        requireNonNull(value);
         metrics.add(Pair.of(metric, Value.create(timestamp, value)));
     }
 

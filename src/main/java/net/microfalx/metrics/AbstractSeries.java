@@ -3,6 +3,7 @@ package net.microfalx.metrics;
 import net.microfalx.lang.NamedIdentityAware;
 
 import java.time.Duration;
+import java.util.OptionalDouble;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -39,5 +40,31 @@ abstract class AbstractSeries extends NamedIdentityAware<String> implements Seri
         requireNonNull(retention);
         this.retention = retention;
         return this;
+    }
+
+    @Override
+    public Series add(Series series) {
+        requireNonNull(series);
+        for (Value value : series.getValues()) {
+            add(value);
+        }
+        afterChange();
+        return this;
+    }
+
+    @Override
+    public Series addAverage(Series series) {
+        requireNonNull(series);
+        OptionalDouble average = series.getAverage();
+        if (average.isPresent()) {
+            long timestamp = series.getFirst().get().getTimestamp();
+            add(Value.create(timestamp, (float) average.getAsDouble()));
+        }
+        afterChange();
+        return this;
+    }
+
+    protected void afterChange() {
+        // empty by design
     }
 }

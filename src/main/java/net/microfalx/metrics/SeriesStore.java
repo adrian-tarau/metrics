@@ -3,7 +3,10 @@ package net.microfalx.metrics;
 import org.atteo.classindex.IndexSubclasses;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.temporal.Temporal;
+import java.util.Collection;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 
@@ -11,7 +14,7 @@ import java.util.Set;
  * An abstraction of a store for {@link Series}.
  */
 @IndexSubclasses
-public interface SeriesStore {
+public interface SeriesStore extends Comparable<SeriesStore> {
 
     /**
      * Creates a series store.
@@ -73,6 +76,35 @@ public interface SeriesStore {
     Set<Metric> getMetrics();
 
     /**
+     * Returns the earliest timestamp available in the store.
+     *
+     * @return a non-null instance
+     */
+    Optional<LocalDateTime> getEarliestTimestamp();
+
+    /**
+     * Returns the earliest timestamp available in the store for a given metric.
+     *
+     * @param metric the metric
+     * @return a non-null instance
+     */
+    Optional<LocalDateTime> getEarliestTimestamp(Metric metric);
+
+    /**
+     * Returns the latest timestamp available in the store.
+     *
+     * @return a non-null instance
+     */
+    Optional<LocalDateTime> getLatestTimestamp();
+
+    /**
+     * Returns the latest timestamp available in the store for a given metric.
+     *
+     * @return a non-null instance
+     */
+    Optional<LocalDateTime> getLatestTimestamp(Metric metric);
+
+    /**
      * Returns the series for a given metric.
      *
      * @param metric the metric
@@ -112,7 +144,7 @@ public interface SeriesStore {
     /**
      * Returns the average for a given metric.
      *
-     * @param metric   the metric
+     * @param metric the metric
      * @return the average
      */
     OptionalDouble getAverage(Metric metric);
@@ -136,4 +168,12 @@ public interface SeriesStore {
      * Clears the store.
      */
     void clear();
+
+    /**
+     * Adds all metrics from a given series into this series.
+     *
+     * @param average {@code true} to add the average of the metrics, {@code false} all values
+     * @param series the series
+     */
+    void add(Collection<SeriesStore> series, boolean average);
 }

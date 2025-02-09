@@ -114,6 +114,11 @@
             <artifactId>sqlite-jdbc</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.esotericsoftware</groupId>
+            <artifactId>kryo</artifactId>
+        </dependency>
+
         <!-- Tests -->
 
         <dependency>

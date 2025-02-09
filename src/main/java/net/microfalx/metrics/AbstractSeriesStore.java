@@ -1,9 +1,10 @@
 package net.microfalx.metrics;
 
+import net.microfalx.lang.ObjectUtils;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.OptionalDouble;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 import static java.time.Duration.ofMinutes;
@@ -16,6 +17,8 @@ public abstract class AbstractSeriesStore implements SeriesStore {
 
     private volatile Duration retention = ofMinutes(15);
     private final Map<Metric, Value> lastValues = new ConcurrentSkipListMap<>();
+
+    private volatile Optional<LocalDateTime> earliestTimestamp;
 
     @Override
     public final Duration getRetention() {
@@ -39,6 +42,70 @@ public abstract class AbstractSeriesStore implements SeriesStore {
     @Override
     public OptionalDouble getAverage(Metric metric) {
         return getAverage(metric, Duration.ofDays(1));
+    }
+
+    @Override
+    public Optional<LocalDateTime> getEarliestTimestamp() {
+        if (earliestTimestamp == null) {
+            LocalDateTime earliest = null;
+            for (Metric metric : getMetrics()) {
+                Optional<LocalDateTime> timestamp = getEarliestTimestamp(metric);
+                if (timestamp.isPresent()) {
+                    earliest = ObjectUtils.compare(timestamp.get(), earliest) > 0 ? timestamp.get() : earliest;
+                }
+            }
+            earliestTimestamp = Optional.ofNullable(earliest);
+        }
+        return earliestTimestamp;
+    }
+
+    @Override
+    public Optional<LocalDateTime> getEarliestTimestamp(Metric metric) {
+        requireNonNull(metric);
+        return get(metric).getFirst().map(Value::atLocalTime);
+    }
+
+    @Override
+    public Optional<LocalDateTime> getLatestTimestamp() {
+        LocalDateTime earliest = null;
+        for (Metric metric : getMetrics()) {
+            Optional<LocalDateTime> timestamp = getEarliestTimestamp(metric);
+            if (timestamp.isPresent()) {
+                earliest = ObjectUtils.compare(timestamp.get(), earliest) < 0 ? timestamp.get() : earliest;
+            }
+        }
+        return Optional.ofNullable(earliest);
+    }
+
+    @Override
+    public Optional<LocalDateTime> getLatestTimestamp(Metric metric) {
+        requireNonNull(metric);
+        return get(metric).getLast().map(Value::atLocalTime);
+    }
+
+    @Override
+    public void add(Collection<SeriesStore> seriesStores, boolean average) {
+        requireNonNull(seriesStores);
+        Set<Metric> metrics = seriesStores.isEmpty() ? Collections.emptySet() : seriesStores.iterator().next().getMetrics();
+        if (metrics.isEmpty()) return;
+        List<SeriesStore> sortedSeriesStores = new ArrayList<>(seriesStores);
+        sortedSeriesStores.sort(Comparator.naturalOrder());
+        for (Metric metric : metrics) {
+            Series targetSeries = get(metric);
+            for (SeriesStore sortedSeriesStore : sortedSeriesStores) {
+                Series sourceSeries = sortedSeriesStore.get(metric);
+                if (average) {
+                    targetSeries.addAverage(sourceSeries);
+                } else {
+                    targetSeries.add(sourceSeries);
+                }
+            }
+        }
+    }
+
+    @Override
+    public int compareTo(SeriesStore o) {
+        return ObjectUtils.compare(getEarliestTimestamp(), o.getEarliestTimestamp());
     }
 
     protected final Value adaptValue(Metric metric, Value value) {

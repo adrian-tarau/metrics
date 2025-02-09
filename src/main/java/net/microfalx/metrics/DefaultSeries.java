@@ -1,5 +1,6 @@
 package net.microfalx.metrics;
 
+import com.esotericsoftware.kryo.DefaultSerializer;
 import net.microfalx.lang.StringUtils;
 
 import java.time.Duration;
@@ -14,9 +15,10 @@ import static net.microfalx.lang.CollectionUtils.toList;
  * A default implementation which holds all values in a list.
  */
 @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "OptionalAssignedToNull"})
+@DefaultSerializer(DefaultSeriesSerializer.class)
 public class DefaultSeries extends AbstractSeries {
 
-    private final List<Value> values;
+    final List<Value> values;
 
     private volatile OptionalDouble average;
     private volatile OptionalDouble minimum;
@@ -43,6 +45,11 @@ public class DefaultSeries extends AbstractSeries {
         super(name);
         this.values = toList(values);
         this.values.sort(Comparator.comparing(Value::getTimestamp));
+    }
+
+    DefaultSeries(String name) {
+        super(name);
+        values = new ArrayList<>();
     }
 
     public List<Value> getValues() {
@@ -169,5 +176,10 @@ public class DefaultSeries extends AbstractSeries {
             rlock.unlock();
         }
         return new CompactSeries(getName(), data);
+    }
+
+    @Override
+    protected void afterChange() {
+        values.sort(Comparator.comparing(Value::getTimestamp));
     }
 }

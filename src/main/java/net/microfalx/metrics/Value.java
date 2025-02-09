@@ -1,5 +1,6 @@
 package net.microfalx.metrics;
 
+import com.esotericsoftware.kryo.DefaultSerializer;
 import net.microfalx.lang.TimeUtils;
 import net.microfalx.lang.Timestampable;
 
@@ -12,6 +13,7 @@ import static java.time.Instant.ofEpochMilli;
 /**
  * A class which holds a numeric value at a point in time.
  */
+@DefaultSerializer(ValueSerializer.class)
 public class Value implements Timestampable<Instant> {
 
     final long timestamp;

@@ -1,5 +1,6 @@
 package net.microfalx.metrics;
 
+import com.esotericsoftware.kryo.DefaultSerializer;
 import net.microfalx.lang.annotation.Order;
 import net.microfalx.lang.annotation.Provider;
 import org.apache.commons.lang3.tuple.Pair;
@@ -16,9 +17,10 @@ import static net.microfalx.lang.ArgumentUtils.requireNonNull;
  */
 @Provider
 @Order(Order.AFTER)
+@DefaultSerializer(SeriesMemoryStoreSerializer.class)
 public class SeriesMemoryStore extends AbstractSeriesStore {
 
-    private final Map<Metric, Series> series = new ConcurrentSkipListMap<>();
+    final Map<Metric, Series> series = new ConcurrentSkipListMap<>();
 
     protected SeriesMemoryStore() {
     }

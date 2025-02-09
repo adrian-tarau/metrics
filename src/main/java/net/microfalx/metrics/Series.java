@@ -154,9 +154,25 @@ public interface Series extends Identifiable<String>, Nameable {
      * Adds a new value to the series.
      *
      * @param value the new value
-     * @return a new series with a new value
+     * @return self
      */
     Series add(Value value);
+
+    /**
+     * Adds all values from another series to this series.
+     *
+     * @param series the other series
+     * @return self
+     */
+    Series add(Series series);
+
+    /**
+     * Adds the average of another series to this series.
+     *
+     * @param series the other series
+     * @return self
+     */
+    Series addAverage(Series series);
 
     /**
      * Compacts the series.
