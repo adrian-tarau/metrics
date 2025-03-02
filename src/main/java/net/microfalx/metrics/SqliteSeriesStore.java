@@ -84,7 +84,8 @@ final class SqliteSeriesStore extends AbstractSeriesStore {
                 return null;
             });
         } catch (SQLException e) {
-            throw new MetricException("Failed to extract series for metric '" + metric.getName() + "'", e);
+            throw new MetricException("Failed to extract series for metric '" + metric.getName()
+                    + "', store '" + name + "'", e);
         }
         return series;
     }
@@ -100,7 +101,8 @@ final class SqliteSeriesStore extends AbstractSeriesStore {
                 return null;
             }, toMillis(from), toMillis(to));
         } catch (SQLException e) {
-            throw new MetricException("Failed to extract series for metric '" + metric.getName() + "'", e);
+            throw new MetricException("Failed to extract series for metric '" + metric.getName()
+                    + "', store '" + name + "'", e);
         }
         return series;
     }
@@ -113,7 +115,8 @@ final class SqliteSeriesStore extends AbstractSeriesStore {
                     SqliteSeriesStore::getFirstDouble, toMillis(from), toMillis(to));
             return OptionalDouble.of(value);
         } catch (SQLException e) {
-            throw new MetricException("Failed to extract series for metric '" + metric.getName() + "'", e);
+            throw new MetricException("Failed to extract series for metric '" + metric.getName()
+                    + "', store '" + name + "'", e);
         }
     }
 
@@ -124,7 +127,8 @@ final class SqliteSeriesStore extends AbstractSeriesStore {
         try {
             update(createInsertSql(metric), value.getTimestamp(), value.asFloat());
         } catch (SQLException e) {
-            throw new MetricException("Failed to store value '" + value.toString() + "' for metrics '" + metric.getName() + "'", e);
+            throw new MetricException("Failed to store value '" + value + "' for metrics '" + metric.getName()
+                    + "', store '" + name + "'", e);
         }
     }
 
@@ -142,7 +146,7 @@ final class SqliteSeriesStore extends AbstractSeriesStore {
                 return null;
             });
         } catch (SQLException e) {
-            throw new MetricException("Failed to store batch with '" + batch.size() + "'", e);
+            throw new MetricException("Failed to store batch (" + batch.size() + " metrics), store '" + name + "'", e);
         }
     }
 
@@ -162,7 +166,8 @@ final class SqliteSeriesStore extends AbstractSeriesStore {
             Long timestamp = doWithResultSet(String.format(sql, getTableName(metric)), SqliteSeriesStore::getFirstLong);
             return timestamp != null ? Optional.of(TimeUtils.toLocalDateTime(timestamp)) : Optional.empty();
         } catch (SQLException e) {
-            throw new MetricException("Failed to extract earliest or latest timestamp for metrics '" + metric.getId() + "'", e);
+            throw new MetricException("Failed to extract earliest or latest timestamp for metric '" + metric.getId()
+                    + "', store '" + name + "'", e);
         }
     }
 
@@ -303,7 +308,7 @@ final class SqliteSeriesStore extends AbstractSeriesStore {
 
     private File getFile() {
         if (db == null) {
-            db = validateFileExists(new File(new File(getVariableDirectory(), "storage"), name));
+            db = validateFileExists(new File(new File(getVariableDirectory(), "metrics"), name));
         }
         return db;
     }

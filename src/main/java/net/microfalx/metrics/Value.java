@@ -31,6 +31,7 @@ public class Value implements Timestampable<Instant> {
     /**
      * Creates an instance with the current timestamp with a given value.
      *
+     * @param value  the value as a float
      * @return non-null instance
      */
     public static Value create(float value) {
@@ -38,8 +39,20 @@ public class Value implements Timestampable<Instant> {
     }
 
     /**
+     * Creates an instance with the current timestamp with a given value.
+     *
+     * @param value the value as a double
+     * @return non-null instance
+     */
+    public static Value create(double value) {
+        return create(currentTimeMillis(), (float) value);
+    }
+
+    /**
      * Creates an instance with a timestamp and a value.
      *
+     * @param timestamp the timestamp
+     * @param value    the value
      * @return non-null instance
      */
     public static Value create(LocalDateTime timestamp, float value) {
@@ -48,11 +61,21 @@ public class Value implements Timestampable<Instant> {
 
     /**
      * Creates an instance with a timestamp and a value.
-     *
+     * @param timestamp the timestamp
+     * @param value    the value
      * @return non-null instance
      */
     public static Value create(long timestamp, float value) {
         return new Value(timestamp, value);
+    }
+
+    /**
+     * Creates an instance with a timestamp and a value.
+     *
+     * @return non-null instance
+     */
+    public static Value create(long timestamp, double value) {
+        return new Value(timestamp, (float) value);
     }
 
     protected Value() {
