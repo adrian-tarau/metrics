@@ -1,7 +1,9 @@
 package net.microfalx.metrics;
 
+import net.microfalx.lang.TimeUtils;
 import net.microfalx.lang.annotation.Order;
 import net.microfalx.lang.annotation.Provider;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
@@ -11,10 +13,9 @@ import org.sqlite.SQLiteOpenMode;
 
 import java.io.File;
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.time.temporal.Temporal;
-import java.util.OptionalDouble;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -25,13 +26,14 @@ import static net.microfalx.lang.ArgumentUtils.requireNotEmpty;
 import static net.microfalx.lang.FileUtils.validateFileExists;
 import static net.microfalx.lang.IOUtils.closeQuietly;
 import static net.microfalx.lang.JvmUtils.getVariableDirectory;
+import static net.microfalx.lang.TimeUtils.toMillis;
 
 /**
  * A store implementation backed by <a href="https://www.sqlite.org/">SQLite</a>
  */
 @Provider
 @Order(Order.LOW)
-class SqliteSeriesStore extends AbstractSeriesStore {
+final class SqliteSeriesStore extends AbstractSeriesStore {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SqliteSeriesStore.class);
 
@@ -61,45 +63,122 @@ class SqliteSeriesStore extends AbstractSeriesStore {
 
     @Override
     public Set<Metric> getMetrics() {
-        return Set.of();
+        Set<Metric> extractMetrics = new HashSet<>();
+        try {
+            for (String tableName : getTableNames()) {
+                extractMetrics.add(Metric.get(tableName));
+            }
+        } catch (SQLException e) {
+            throw new MetricException("Failed to clear storage", e);
+        }
+        return extractMetrics;
     }
 
     @Override
     public Series get(Metric metric) {
-        requireNonNull(metric);
         checkMetricTable(metric);
-        return null;
+        DefaultSeries series = new DefaultSeries(metric.getDisplayName());
+        try {
+            doWithResultSet(String.format(EXTRACT_SERIES, getTableName(metric)), resultSet -> {
+                extractSeries(series, resultSet);
+                return null;
+            });
+        } catch (SQLException e) {
+            throw new MetricException("Failed to extract series for metric '" + metric.getName() + "'", e);
+        }
+        return series;
     }
+
 
     @Override
     public Series get(Metric metric, Temporal from, Temporal to) {
         checkMetricTable(metric);
-        return null;
+        DefaultSeries series = new DefaultSeries(metric.getDisplayName());
+        try {
+            doWithResultSet(String.format(EXTRACT_SERIES_WITH_RANGE, getTableName(metric)), resultSet -> {
+                extractSeries(series, resultSet);
+                return null;
+            }, toMillis(from), toMillis(to));
+        } catch (SQLException e) {
+            throw new MetricException("Failed to extract series for metric '" + metric.getName() + "'", e);
+        }
+        return series;
     }
 
     @Override
     public OptionalDouble getAverage(Metric metric, Temporal from, Temporal to) {
-        return OptionalDouble.of(0);
+        checkMetricTable(metric);
+        try {
+            Double value = doWithResultSet(String.format(EXTRACT_SERIES_AVERAGE, getTableName(metric)),
+                    SqliteSeriesStore::getFirstDouble, toMillis(from), toMillis(to));
+            return OptionalDouble.of(value);
+        } catch (SQLException e) {
+            throw new MetricException("Failed to extract series for metric '" + metric.getName() + "'", e);
+        }
     }
 
     @Override
     public void add(Metric metric, Value value) {
-        requireNonNull(metric);
-        requireNonNull(value);
         checkMetricTable(metric);
+        requireNonNull(value);
+        try {
+            update(createInsertSql(metric), value.getTimestamp(), value.asFloat());
+        } catch (SQLException e) {
+            throw new MetricException("Failed to store value '" + value.toString() + "' for metrics '" + metric.getName() + "'", e);
+        }
     }
 
     @Override
     public void add(Batch batch) {
         requireNonNull(batch);
+        try {
+            doInConnection(connection -> {
+                for (Pair<Metric, Value> pair : batch) {
+                    Metric metric = pair.getKey();
+                    Value value = pair.getValue();
+                    checkMetricTable(metric);
+                    update(createInsertSql(metric), value.getTimestamp(), value.asFloat());
+                }
+                return null;
+            });
+        } catch (SQLException e) {
+            throw new MetricException("Failed to store batch with '" + batch.size() + "'", e);
+        }
+    }
+
+    @Override
+    public Optional<LocalDateTime> getEarliestTimestamp(Metric metric) {
+        return getTimestamp(metric, EXTRACT_SERIES_EARLIEST);
+    }
+
+    @Override
+    public Optional<LocalDateTime> getLatestTimestamp(Metric metric) {
+        return getTimestamp(metric, EXTRACT_SERIES_LATEST);
+    }
+
+    private Optional<LocalDateTime> getTimestamp(Metric metric, String sql) {
+        checkMetricTable(metric);
+        try {
+            Long timestamp = doWithResultSet(String.format(sql, getTableName(metric)), SqliteSeriesStore::getFirstLong);
+            return timestamp != null ? Optional.of(TimeUtils.toLocalDateTime(timestamp)) : Optional.empty();
+        } catch (SQLException e) {
+            throw new MetricException("Failed to extract earliest or latest timestamp for metrics '" + metric.getId() + "'", e);
+        }
     }
 
     @Override
     public void clear() {
-
+        try {
+            for (String tableName : getTableNames()) {
+                execute(String.format(DELETE_SERIES, tableName));
+            }
+        } catch (SQLException e) {
+            throw new MetricException("Failed to clear storage", e);
+        }
     }
 
     private void checkMetricTable(Metric metric) {
+        requireNonNull(metric);
         String id = metric.getId();
         if (metricsCreated.contains(id)) return;
         wlock.lock();
@@ -113,6 +192,13 @@ class SqliteSeriesStore extends AbstractSeriesStore {
             }
         } finally {
             wlock.unlock();
+        }
+    }
+
+    private void extractSeries(DefaultSeries series, ResultSet resultSet) throws SQLException {
+        while (resultSet.next()) {
+            Value value = Value.create(resultSet.getLong(1), resultSet.getFloat(2));
+            series.values.add(value);
         }
     }
 
@@ -153,8 +239,8 @@ class SqliteSeriesStore extends AbstractSeriesStore {
             try {
                 try (Timer ignored = METRICS.startTimer("Query")) {
                     int index = 1;
-                    for (Object value : args) {
-                        statement.setObject(index++, value);
+                    for (Object arg : args) {
+                        statement.setObject(index++, arg);
                     }
                     resultSet = statement.executeQuery();
                 }
@@ -194,12 +280,15 @@ class SqliteSeriesStore extends AbstractSeriesStore {
             config.setOpenMode(SQLiteOpenMode.READWRITE);
             properties = config.toProperties();
             String url = getJdbcUrl();
-            LOGGER.info("Create database {}", url);
+            boolean exists = getFile().exists();
+            if (!exists) LOGGER.info("Create database {}", url);
             try {
                 driver = DriverManager.getDriver(url);
-                LOGGER.info("SQLite database opened, version {}.{}", driver.getMajorVersion(), driver.getMinorVersion());
+                if (!exists) {
+                    LOGGER.info("SQLite database opened, version {}.{}", driver.getMajorVersion(), driver.getMinorVersion());
+                }
             } catch (SQLException e) {
-                LOGGER.atError().setCause(e).log("Failed to initialize SQLite database {}", url);
+                throw new MetricException("Failed to initialize SQLite database '" + url + "'");
             }
             return driver;
         } finally {
@@ -212,19 +301,26 @@ class SqliteSeriesStore extends AbstractSeriesStore {
     }
 
     private File getFile() {
-        wlock.lock();
-        try {
-            if (db == null) {
-                db = validateFileExists(new File(new File(getVariableDirectory(), "storage"), name));
-            }
-            return db;
-        } finally {
-            wlock.unlock();
+        if (db == null) {
+            db = validateFileExists(new File(new File(getVariableDirectory(), "storage"), name));
         }
+        return db;
+    }
+
+    private static Long getFirstLong(ResultSet resultSet) throws SQLException {
+        return resultSet.next() ? resultSet.getLong(1) : null;
+    }
+
+    private static Double getFirstDouble(ResultSet resultSet) throws SQLException {
+        return resultSet.next() ? resultSet.getDouble(1) : null;
     }
 
     private static String getTableName(Metric metric) {
         return metric.getId();
+    }
+
+    private static Metric getMetric(String tableName) {
+        return Metric.get(tableName);
     }
 
     private String createCreateSQL(Metric metric) {
@@ -236,6 +332,24 @@ class SqliteSeriesStore extends AbstractSeriesStore {
         return builder.toString();
     }
 
+    private String createInsertSql(Metric metric) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("INSERT INTO ").append(getTableName(metric)).append(" (")
+                .append("timestamp, value)")
+                .append("VALUES (?,?)");
+        return builder.toString();
+    }
+
+    private Set<String> getTableNames() throws SQLException {
+        return doWithResultSet(EXTRACT_TABLE_NAMES, resultSet -> {
+            Set<String> tableNames = new HashSet<>();
+            while (resultSet.next()) {
+                tableNames.add(resultSet.getString(1));
+            }
+            return tableNames;
+        });
+    }
+
     interface ConnectionCallback<T> {
 
         T doInConnection(Connection connection) throws SQLException;
@@ -245,4 +359,12 @@ class SqliteSeriesStore extends AbstractSeriesStore {
 
         T doWithResultSet(ResultSet resultSet) throws SQLException;
     }
+
+    private static final String EXTRACT_SERIES = "SELECT * FROM %s";
+    private static final String EXTRACT_SERIES_WITH_RANGE = "SELECT * FROM %s where timestamp >= ? and timestamp <= ?";
+    private static final String EXTRACT_SERIES_AVERAGE = "SELECT AVG(value) FROM %s where timestamp >= ? and timestamp <= ?";
+    private static final String EXTRACT_SERIES_EARLIEST = "SELECT min(timestamp) FROM %s";
+    private static final String EXTRACT_SERIES_LATEST = "SELECT max(timestamp) FROM %s";
+    private static final String DELETE_SERIES = "DELETE FROM %s";
+    private static final String EXTRACT_TABLE_NAMES = "SELECT name FROM sqlite_master WHERE type='table'";
 }

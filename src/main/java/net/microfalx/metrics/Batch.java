@@ -38,6 +38,15 @@ public class Batch implements Iterable<Pair<Metric, Value>> {
     }
 
     /**
+     * Returns the size of the batch.
+     *
+     * @return a positive integer
+     */
+    public int size() {
+        return metrics.size();
+    }
+
+    /**
      * Adds a new metric value.
      *
      * @param metric the metric
