@@ -47,7 +47,7 @@ class CompactSeries extends AbstractSeries {
         InputStream is = new ByteArrayInputStream(data);
         DataInputStream din = new DataInputStream(is);
         try {
-            return new Value(din.readInt(), din.readFloat());
+            return new Value(din.readLong(), din.readFloat());
         } catch (IOException e) {
             return ExceptionUtils.throwException(e);
         }

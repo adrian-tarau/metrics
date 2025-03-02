@@ -46,8 +46,8 @@ final class SqliteSeriesStore extends AbstractSeriesStore {
     private final Lock wlock = lock.writeLock();
     private final Set<String> metricsCreated = new ConcurrentSkipListSet<>();
     private final String name;
-    private File db;
-    private Driver driver;
+    private volatile File db;
+    private volatile Driver driver;
     private Properties properties;
 
     private static final ThreadLocal<Connection> CONNECTION = new ThreadLocal<>();
@@ -272,6 +272,7 @@ final class SqliteSeriesStore extends AbstractSeriesStore {
     }
 
     private Driver getDriver() {
+        if (driver != null) return driver;
         rlock.lock();
         try {
             SQLiteConfig config = new SQLiteConfig();

@@ -1,9 +1,8 @@
 package net.microfalx.metrics;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.StringJoiner;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 
@@ -106,6 +105,15 @@ public class Aggregation {
         }
     }
 
+    /**
+     * Returns the aggregations as {@link Matrix matrixes}.
+     *
+     * @return a non-null instance
+     */
+    public Collection<Matrix> toMatrixes() {
+        return timeSeries.values().stream().map(TimeSeries::toMatrix).collect(Collectors.toList());
+    }
+
     private void checkStarted() {
         if (!timeSeries.isEmpty()) {
             throw new IllegalStateException("The step cannot be changed after the aggregation started");
@@ -198,6 +206,12 @@ public class Aggregation {
             } else {
                 return value;
             }
+        }
+
+        private Matrix toMatrix() {
+            Iterator<Value> iterator = values.values().stream().sorted(Comparator.comparing(Value::getTimestamp))
+                    .map(this::change).iterator();
+            return Matrix.create(metric, iterator);
         }
 
         @Override

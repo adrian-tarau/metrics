@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class CompactSeriesTest {
 
+    private final long timestamp = System.currentTimeMillis();
+
     @Test
     void create() {
         CompactSeries series = createCompact();
@@ -77,9 +79,9 @@ class CompactSeriesTest {
     }
 
     private DefaultSeries createDefault() {
-        return new DefaultSeries("test", List.of(Value.create(1, 1),
-                Value.create(2, 2), Value.create(3, 5),
-                Value.create(4, 10)));
+        return new DefaultSeries("test", List.of(Value.create(timestamp, 1),
+                Value.create(timestamp + 1, 2), Value.create(timestamp + 2, 5),
+                Value.create(timestamp + 3, 10)));
     }
 
 }
