@@ -16,7 +16,7 @@ import static java.lang.System.currentTimeMillis;
 import static java.util.Collections.unmodifiableCollection;
 import static java.util.Collections.unmodifiableMap;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
-import static net.microfalx.lang.ExceptionUtils.throwException;
+import static net.microfalx.lang.ExceptionUtils.rethrowExceptionAndReturn;
 import static net.microfalx.lang.StringUtils.capitalizeWords;
 import static net.microfalx.lang.TimeUtils.toLocalDateTime;
 
@@ -517,7 +517,7 @@ public abstract class Metrics implements Cloneable {
             try {
                 return callable.call();
             } catch (Exception e) {
-                return throwException(e);
+                return rethrowExceptionAndReturn(e);
             }
         }
 

@@ -1,13 +1,12 @@
 package net.microfalx.metrics;
 
-import net.microfalx.lang.ExceptionUtils;
-
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
 import static java.time.Duration.ofSeconds;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 import static net.microfalx.lang.ArgumentUtils.requireNotEmpty;
+import static net.microfalx.lang.ExceptionUtils.rethrowExceptionAndReturn;
 import static net.microfalx.lang.StringUtils.EMPTY_STRING;
 import static net.microfalx.lang.StringUtils.defaultIfEmpty;
 
@@ -175,7 +174,7 @@ public final class Query implements Cloneable {
         try {
             return (Query) clone();
         } catch (CloneNotSupportedException e) {
-            return ExceptionUtils.throwException(e);
+            return rethrowExceptionAndReturn(e);
         }
     }
 }

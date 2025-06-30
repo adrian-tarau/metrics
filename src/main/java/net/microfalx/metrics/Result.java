@@ -1,6 +1,5 @@
 package net.microfalx.metrics;
 
-import net.microfalx.lang.ExceptionUtils;
 import net.microfalx.lang.StringUtils;
 
 import java.util.ArrayList;
@@ -9,6 +8,7 @@ import java.util.StringJoiner;
 
 import static java.util.Collections.unmodifiableCollection;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
+import static net.microfalx.lang.ExceptionUtils.rethrowExceptionAndReturn;
 
 /**
  * A result of a {@link Query}.
@@ -148,7 +148,7 @@ public final class Result implements Cloneable {
         try {
             return (Result) clone();
         } catch (CloneNotSupportedException e) {
-            return ExceptionUtils.throwException(e);
+            return rethrowExceptionAndReturn(e);
         }
     }
 

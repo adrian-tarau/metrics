@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
-import static net.microfalx.lang.ExceptionUtils.throwException;
+import static net.microfalx.lang.ExceptionUtils.rethrowExceptionAndReturn;
 import static net.microfalx.metrics.MetricUtils.computeId;
 
 public class MicrometerMetrics extends Metrics {
@@ -229,7 +229,7 @@ public class MicrometerMetrics extends Metrics {
                     try {
                         return callable.call();
                     } catch (Exception e) {
-                        return throwException(e);
+                        return rethrowExceptionAndReturn(e);
                     }
                 });
             } else {
@@ -237,7 +237,7 @@ public class MicrometerMetrics extends Metrics {
                     try {
                         return callable.call();
                     } catch (Exception e) {
-                        return throwException(e);
+                        return rethrowExceptionAndReturn(e);
                     }
                 });
             }

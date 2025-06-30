@@ -1,12 +1,12 @@
 package net.microfalx.metrics;
 
 import net.microfalx.lang.ArgumentUtils;
-import net.microfalx.lang.ExceptionUtils;
 
 import java.io.*;
 import java.util.*;
 
 import static net.microfalx.lang.ArgumentUtils.requireBounded;
+import static net.microfalx.lang.ExceptionUtils.rethrowExceptionAndReturn;
 
 @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "OptionalAssignedToNull"})
 class CompactSeries extends AbstractSeries {
@@ -49,7 +49,7 @@ class CompactSeries extends AbstractSeries {
         try {
             return new Value(din.readLong(), din.readFloat());
         } catch (IOException e) {
-            return ExceptionUtils.throwException(e);
+            return rethrowExceptionAndReturn(e);
         }
     }
 
@@ -113,7 +113,7 @@ class CompactSeries extends AbstractSeries {
             write(dout, value);
             return new CompactSeries(getName(), buffer.toByteArray());
         } catch (IOException e) {
-            return ExceptionUtils.throwException(e);
+            return rethrowExceptionAndReturn(e);
         }
     }
 
@@ -133,7 +133,7 @@ class CompactSeries extends AbstractSeries {
             }
             return buffer.toByteArray();
         } catch (IOException e) {
-            return ExceptionUtils.throwException(e);
+            return rethrowExceptionAndReturn(e);
         }
     }
 
