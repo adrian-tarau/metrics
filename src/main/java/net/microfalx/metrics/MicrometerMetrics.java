@@ -4,6 +4,8 @@ import io.micrometer.core.instrument.LongTaskTimer;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.distribution.HistogramSnapshot;
+import io.micrometer.core.instrument.distribution.ValueAtPercentile;
 
 import java.time.Duration;
 import java.util.List;
@@ -62,6 +64,12 @@ public class MicrometerMetrics extends Metrics {
             io.micrometer.core.instrument.Meter timer;
             if (type == Timer.Type.SHORT) {
                 timer = registry.timer(id, getTags(name));
+            } else if (type == Timer.Type.SHORT_PERCENTILE) {
+                timer = io.micrometer.core.instrument.Timer.builder(id)
+                        .publishPercentiles(0.5, 0.95, 0.99)
+                        .minimumExpectedValue(Duration.ofMillis(1))
+                        .maximumExpectedValue(Duration.ofSeconds(20))
+                        .percentilePrecision(2).register(registry);
             } else {
                 timer = registry.more().longTaskTimer(id, getTags(name));
             }
@@ -201,13 +209,14 @@ public class MicrometerMetrics extends Metrics {
             }
         }
 
+        @SuppressWarnings("unchecked")
         @Override
-        public void record(Consumer<Timer> consumer) {
+        public <T> void record(Consumer<T> consumer) {
             touch();
             if (type == Type.SHORT) {
-                ((io.micrometer.core.instrument.Timer) meter).record(() -> consumer.accept(this));
+                ((io.micrometer.core.instrument.Timer) meter).record(() -> consumer.accept((T) this));
             } else {
-                ((io.micrometer.core.instrument.LongTaskTimer) meter).record(() -> consumer.accept(this));
+                ((io.micrometer.core.instrument.LongTaskTimer) meter).record(() -> consumer.accept((T) this));
             }
         }
 
@@ -254,30 +263,38 @@ public class MicrometerMetrics extends Metrics {
         }
 
         @Override
-        public Runnable wrap(Runnable f) {
+        public void record(Duration duration) {
+            touch();
+            if (meter instanceof io.micrometer.core.instrument.Timer) {
+                ((io.micrometer.core.instrument.Timer) meter).record(duration);
+            }
+        }
+
+        @Override
+        public Runnable wrap(Runnable runnable) {
             touch();
             if (type == Type.SHORT) {
-                return ((io.micrometer.core.instrument.Timer) meter).wrap(f);
+                return ((io.micrometer.core.instrument.Timer) meter).wrap(runnable);
             } else {
                 return throwWrappersNotSupported();
             }
         }
 
         @Override
-        public <T> Callable<T> wrap(Callable<T> f) {
+        public <T> Callable<T> wrap(Callable<T> callable) {
             touch();
             if (type == Type.SHORT) {
-                return ((io.micrometer.core.instrument.Timer) meter).wrap(f);
+                return ((io.micrometer.core.instrument.Timer) meter).wrap(callable);
             } else {
                 return throwWrappersNotSupported();
             }
         }
 
         @Override
-        public <T> Supplier<T> wrap(Supplier<T> f) {
+        public <T> Supplier<T> wrap(Supplier<T> supplier) {
             touch();
             if (type == Type.SHORT) {
-                return ((io.micrometer.core.instrument.Timer) meter).wrap(f);
+                return ((io.micrometer.core.instrument.Timer) meter).wrap(supplier);
             } else {
                 return throwWrappersNotSupported();
             }
@@ -322,6 +339,33 @@ public class MicrometerMetrics extends Metrics {
             } else {
                 return Duration.ofNanos((long) ((io.micrometer.core.instrument.Timer) meter).max(TimeUnit.NANOSECONDS));
             }
+        }
+
+        @Override
+        public Duration getPercentile(Percentile percentile) {
+            if (meter instanceof io.micrometer.core.instrument.Timer) {
+                HistogramSnapshot histogramSnapshot = ((io.micrometer.core.instrument.Timer) meter).takeSnapshot();
+                ValueAtPercentile valueAtPercentile = histogramSnapshot.percentileValues()[percentile.ordinal()];
+                return Duration.ofNanos((long) valueAtPercentile.value());
+            } else {
+                return Duration.ZERO;
+            }
+        }
+
+        @Override
+        public Duration[] getPercentiles() {
+            if (meter instanceof io.micrometer.core.instrument.Timer) {
+                HistogramSnapshot histogramSnapshot = ((io.micrometer.core.instrument.Timer) meter).takeSnapshot();
+                ValueAtPercentile[] valueAtPercentile = histogramSnapshot.percentileValues();
+                Duration[] durations = new Duration[valueAtPercentile.length];
+                if (durations.length == 3) {
+                    for (int i = 0; i < valueAtPercentile.length; i++) {
+                        durations[i] = Duration.ofNanos((long) valueAtPercentile[i].value());
+                    }
+                    return durations;
+                }
+            }
+            return new Duration[]{Duration.ZERO, Duration.ZERO, Duration.ZERO};
         }
 
         @SuppressWarnings("resource")

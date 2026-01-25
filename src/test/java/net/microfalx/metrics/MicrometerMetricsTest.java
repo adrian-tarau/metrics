@@ -7,9 +7,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 class MicrometerMetricsTest {
 
@@ -75,6 +75,20 @@ class MicrometerMetricsTest {
         assertEquals("test2.t1", timer.getName());
         assertEquals(7d, timer.record(() -> 7d));
         assertEquals(7d, timer.recordCallable(() -> 7d));
+    }
+
+    @Test
+    void getTimerWithPercentlies() {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        Timer timer = micrometerMetrics.getTimer("test2.t3", Timer.Type.SHORT_PERCENTILE);
+        for (int i = 0; i < 100; i++) {
+            timer.record(() -> ThreadUtils.sleepMillis(1 + random.nextInt(5)));
+        }
+        assertFalse(timer.getPercentile(Percentile.P50).isZero());
+        Duration[] percentiles = timer.getPercentiles();
+        assertFalse(percentiles[0].isZero());
+        assertFalse(percentiles[1].isZero());
+        assertFalse(percentiles[2].isZero());
     }
 
     @Test

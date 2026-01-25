@@ -56,7 +56,7 @@ public interface Timer extends Meter, AutoCloseable {
      *
      * @param consumer the consumer
      */
-    void record(Consumer<Timer> consumer);
+    <T> void record(Consumer<T> consumer);
 
     /**
      * Times a block of code.
@@ -81,31 +81,38 @@ public interface Timer extends Meter, AutoCloseable {
     void record(Runnable runnable);
 
     /**
+     * Records a duration.
+     *
+     * @param duration the runnable
+     */
+    void record(Duration duration);
+
+    /**
      * Wrap a {@link Runnable} so that it is timed when invoked.
      *
-     * @param f the Runnable to time when it is invoked.
+     * @param runnable the Runnable to time when it is invoked.
      * @return The wrapped Runnable.
      */
-    Runnable wrap(Runnable f);
+    Runnable wrap(Runnable runnable);
 
     /**
      * Wrap a {@link Callable} so that it is timed when invoked.
      *
-     * @param f   The Callable to time when it is invoked.
+     * @param callable   The Callable to time when it is invoked.
      * @param <T> The return type of the callable.
      * @return The wrapped callable.
      */
-    <T> Callable<T> wrap(Callable<T> f);
+    <T> Callable<T> wrap(Callable<T> callable);
 
     /**
      * Wrap a {@link Supplier} so that it is timed when invoked.
      *
-     * @param f   The {@code Supplier} to time when it is invoked.
+     * @param supplier   The {@code Supplier} to time when it is invoked.
      * @param <T> The return type of the {@code Supplier} result.
      * @return The wrapped supplier.
      * @since 1.2.0
      */
-    <T> Supplier<T> wrap(Supplier<T> f);
+    <T> Supplier<T> wrap(Supplier<T> supplier);
 
     /**
      * Returns the total duration.
@@ -142,11 +149,27 @@ public interface Timer extends Meter, AutoCloseable {
      */
     Duration getMaximumDuration();
 
+    /**
+     * Returns the duration for the given percentile.
+     *
+     * @param percentile the percentile
+     * @return a long value
+     */
+    Duration getPercentile(Percentile percentile);
+
+    /**
+     * Returns all percentiles durations.
+     *
+     * @return a non-null array with 3 values: p50, p95, p99
+     */
+    Duration[] getPercentiles();
+
     @Override
     void close();
 
     enum Type {
         SHORT,
+        SHORT_PERCENTILE,
         LONG
     }
 }

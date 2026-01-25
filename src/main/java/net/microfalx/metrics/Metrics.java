@@ -502,9 +502,10 @@ public abstract class Metrics implements Cloneable {
             return supplier.get();
         }
 
+        @SuppressWarnings("unchecked")
         @Override
-        public void record(Consumer<Timer> consumer) {
-            consumer.accept(this);
+        public <T> void record(Consumer<T> consumer) {
+            consumer.accept((T) this);
         }
 
         @Override
@@ -524,6 +525,11 @@ public abstract class Metrics implements Cloneable {
         @Override
         public void record(Runnable runnable) {
             runnable.run();
+        }
+
+        @Override
+        public void record(Duration duration) {
+            // nothing to record
         }
 
         @Override
@@ -552,23 +558,50 @@ public abstract class Metrics implements Cloneable {
         }
 
         @Override
-        public Runnable wrap(Runnable f) {
-            return f;
+        public Duration getPercentile(Percentile percentile) {
+            return Duration.ZERO;
         }
 
         @Override
-        public <T> Callable<T> wrap(Callable<T> f) {
-            return f;
+        public Duration[] getPercentiles() {
+            return new Duration[]{Duration.ZERO, Duration.ZERO, Duration.ZERO};
         }
 
         @Override
-        public <T> Supplier<T> wrap(Supplier<T> f) {
-            return f;
+        public Runnable wrap(Runnable runnable) {
+            return runnable;
+        }
+
+        @Override
+        public <T> Callable<T> wrap(Callable<T> callable) {
+            return callable;
+        }
+
+        @Override
+        public <T> Supplier<T> wrap(Supplier<T> supplier) {
+            return supplier;
         }
 
         @Override
         public void close() {
             // nothing to close
+        }
+    }
+
+    static class NoSummary extends AbstractMeter implements Summary {
+
+        public NoSummary(String group, String name) {
+            super(group, name);
+        }
+
+        @Override
+        public double getPercentile(Percentile percentile) {
+            return 0;
+        }
+
+        @Override
+        public double[] getPercentiles() {
+            return new double[0];
         }
     }
 }
