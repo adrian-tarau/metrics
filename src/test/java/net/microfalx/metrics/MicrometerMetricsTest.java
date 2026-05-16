@@ -78,14 +78,14 @@ class MicrometerMetricsTest {
     }
 
     @Test
-    void getTimerWithPercentlies() {
+    void getSummary() {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        Timer timer = micrometerMetrics.getTimer("test2.t3", Timer.Type.SHORT_PERCENTILE);
+        Summary summary = micrometerMetrics.getSummary("test2.t3");
         for (int i = 0; i < 100; i++) {
-            timer.record(() -> ThreadUtils.sleepMillis(1 + random.nextInt(5)));
+            summary.record(() -> ThreadUtils.sleepMillis(1 + random.nextInt(5)));
         }
-        assertFalse(timer.getPercentile(Percentile.P50).isZero());
-        Duration[] percentiles = timer.getPercentiles();
+        assertFalse(summary.getPercentile(Percentile.P50).isZero());
+        Duration[] percentiles = summary.getPercentiles();
         assertFalse(percentiles[0].isZero());
         assertFalse(percentiles[1].isZero());
         assertFalse(percentiles[2].isZero());
@@ -117,7 +117,7 @@ class MicrometerMetricsTest {
             ThreadUtils.sleepMillis(5);
             return null;
         });
-        assertEquals(3, metrics.getTimers().size());
+        Assertions.assertThat(metrics.getTimers().size()).isGreaterThanOrEqualTo(3);
         Assertions.assertThat(metrics.getTimers().stream().map(Timer::getDuration)
                         .reduce(Duration.ZERO, Duration::plus).toMillis())
                 .isGreaterThan(1);

@@ -38,6 +38,7 @@ public abstract class Metrics implements Cloneable {
     protected final Map<String, Counter> counters = new ConcurrentHashMap<>();
     protected final Map<String, Gauge> gauges = new ConcurrentHashMap<>();
     protected final Map<String, Timer> timers = new ConcurrentHashMap<>();
+    protected final Map<String, Summary> summaries = new ConcurrentHashMap<>();
     static ThreadLocal<Timer> LAST = new ThreadLocal<>();
 
     public static final Metrics ROOT = Metrics.of("");
@@ -246,6 +247,17 @@ public abstract class Metrics implements Cloneable {
     public abstract Timer getTimer(String name, Timer.Type type);
 
     /**
+     * Returns a summary to time a block of code using percentile.
+     * <p>
+     * The method returns an auto-closable resource and this should be called in a "try with resource" pattern.
+     *
+     * @param name the name of the summary
+     * @param type the type of the summary
+     * @return the resource to stop the summary
+     */
+    public abstract Summary getSummary(String name);
+
+    /**
      * Starts a timer to time a block of code.
      * <p>
      * The method returns an auto-closable resource and this should be called in a "try with resource" pattern.
@@ -293,6 +305,19 @@ public abstract class Metrics implements Cloneable {
             return METRICS.values().stream().flatMap(metrics -> metrics.timers.values().stream()).collect(Collectors.toList());
         } else {
             return unmodifiableCollection(timers.values());
+        }
+    }
+
+    /**
+     * Returns a collection of summaries active in this process.
+     *
+     * @return a non-null instance
+     */
+    public final Collection<Summary> getSummaries() {
+        if (ROOT.equals(this)) {
+            return METRICS.values().stream().flatMap(metrics -> metrics.summaries.values().stream()).collect(Collectors.toList());
+        } else {
+            return unmodifiableCollection(summaries.values());
         }
     }
 
@@ -372,6 +397,11 @@ public abstract class Metrics implements Cloneable {
         @Override
         public Timer getTimer(String name, Timer.Type type) {
             return new NoTimer(getGroup(), name);
+        }
+
+        @Override
+        public Summary getSummary(String name) {
+            return new NoSummary(getGroup(), name);
         }
     }
 
@@ -558,16 +588,6 @@ public abstract class Metrics implements Cloneable {
         }
 
         @Override
-        public Duration getPercentile(Percentile percentile) {
-            return Duration.ZERO;
-        }
-
-        @Override
-        public Duration[] getPercentiles() {
-            return new Duration[]{Duration.ZERO, Duration.ZERO, Duration.ZERO};
-        }
-
-        @Override
         public Runnable wrap(Runnable runnable) {
             return runnable;
         }
@@ -588,20 +608,21 @@ public abstract class Metrics implements Cloneable {
         }
     }
 
-    static class NoSummary extends AbstractMeter implements Summary {
+    static class NoSummary extends NoTimer implements Summary {
 
         public NoSummary(String group, String name) {
             super(group, name);
         }
 
         @Override
-        public double getPercentile(Percentile percentile) {
-            return 0;
+        public Duration getPercentile(Percentile percentile) {
+            return Duration.ZERO;
         }
 
         @Override
-        public double[] getPercentiles() {
-            return new double[0];
+        public Duration[] getPercentiles() {
+            return new Duration[]{Duration.ZERO, Duration.ZERO, Duration.ZERO};
         }
+
     }
 }

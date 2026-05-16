@@ -1,9 +1,7 @@
 package net.microfalx.metrics;
 
-import io.micrometer.core.instrument.LongTaskTimer;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tag;
-import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.*;
+import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.distribution.HistogramSnapshot;
 import io.micrometer.core.instrument.distribution.ValueAtPercentile;
 
@@ -64,12 +62,6 @@ public class MicrometerMetrics extends Metrics {
             io.micrometer.core.instrument.Meter timer;
             if (type == Timer.Type.SHORT) {
                 timer = registry.timer(id, getTags(name));
-            } else if (type == Timer.Type.SHORT_PERCENTILE) {
-                timer = io.micrometer.core.instrument.Timer.builder(id)
-                        .publishPercentiles(0.5, 0.95, 0.99)
-                        .minimumExpectedValue(Duration.ofMillis(1))
-                        .maximumExpectedValue(Duration.ofSeconds(20))
-                        .percentilePrecision(2).register(registry);
             } else {
                 timer = registry.more().longTaskTimer(id, getTags(name));
             }
@@ -77,6 +69,22 @@ public class MicrometerMetrics extends Metrics {
         });
         Metrics.LAST.set(finalTimer);
         return finalTimer;
+    }
+
+    @Override
+    public Summary getSummary(String name) {
+        String id = computeId(getGroup(), name);
+        Summary finalSummary = summaries.computeIfAbsent(id, s -> {
+            io.micrometer.core.instrument.Meter timer;
+            timer = io.micrometer.core.instrument.Timer.builder(id)
+                    .publishPercentiles(0.5, 0.95, 0.99)
+                    .minimumExpectedValue(Duration.ofMillis(1))
+                    .maximumExpectedValue(Duration.ofSeconds(20))
+                    .percentilePrecision(2).register(registry);
+            return new SummaryImpl(this, name, timer);
+        });
+        Metrics.LAST.set(finalSummary);
+        return finalSummary;
     }
 
     private List<Tag> doGetTags() {
@@ -341,6 +349,28 @@ public class MicrometerMetrics extends Metrics {
             }
         }
 
+
+        @SuppressWarnings("resource")
+        @Override
+        public void close() {
+            stop();
+        }
+
+        private <T> T throwWrappersNotSupported() {
+            return thrownUnsupported("Long timers do not support wrappers");
+        }
+
+        private <T> T thrownUnsupported(String name) {
+            throw new UnsupportedOperationException(name);
+        }
+    }
+
+    static class SummaryImpl extends TimerImpl implements Summary {
+
+        public SummaryImpl(Metrics metrics, String name, Meter meter) {
+            super(metrics, name, meter, Type.SHORT);
+        }
+
         @Override
         public Duration getPercentile(Percentile percentile) {
             if (meter instanceof io.micrometer.core.instrument.Timer) {
@@ -366,20 +396,6 @@ public class MicrometerMetrics extends Metrics {
                 }
             }
             return new Duration[]{Duration.ZERO, Duration.ZERO, Duration.ZERO};
-        }
-
-        @SuppressWarnings("resource")
-        @Override
-        public void close() {
-            stop();
-        }
-
-        private <T> T throwWrappersNotSupported() {
-            return thrownUnsupported("Long timers do not support wrappers");
-        }
-
-        private <T> T thrownUnsupported(String name) {
-            throw new UnsupportedOperationException(name);
         }
     }
 }

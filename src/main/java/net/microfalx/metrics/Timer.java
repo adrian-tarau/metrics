@@ -98,8 +98,8 @@ public interface Timer extends Meter, AutoCloseable {
     /**
      * Wrap a {@link Callable} so that it is timed when invoked.
      *
-     * @param callable   The Callable to time when it is invoked.
-     * @param <T> The return type of the callable.
+     * @param callable The Callable to time when it is invoked.
+     * @param <T>      The return type of the callable.
      * @return The wrapped callable.
      */
     <T> Callable<T> wrap(Callable<T> callable);
@@ -107,8 +107,8 @@ public interface Timer extends Meter, AutoCloseable {
     /**
      * Wrap a {@link Supplier} so that it is timed when invoked.
      *
-     * @param supplier   The {@code Supplier} to time when it is invoked.
-     * @param <T> The return type of the {@code Supplier} result.
+     * @param supplier The {@code Supplier} to time when it is invoked.
+     * @param <T>      The return type of the {@code Supplier} result.
      * @return The wrapped supplier.
      * @since 1.2.0
      */
@@ -149,27 +149,11 @@ public interface Timer extends Meter, AutoCloseable {
      */
     Duration getMaximumDuration();
 
-    /**
-     * Returns the duration for the given percentile.
-     *
-     * @param percentile the percentile
-     * @return a long value
-     */
-    Duration getPercentile(Percentile percentile);
-
-    /**
-     * Returns all percentiles durations.
-     *
-     * @return a non-null array with 3 values: p50, p95, p99
-     */
-    Duration[] getPercentiles();
-
     @Override
     void close();
 
     enum Type {
         SHORT,
-        SHORT_PERCENTILE,
         LONG
     }
 }
