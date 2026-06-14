@@ -252,7 +252,6 @@ public abstract class Metrics implements Cloneable {
      * The method returns an auto-closable resource and this should be called in a "try with resource" pattern.
      *
      * @param name the name of the summary
-     * @param type the type of the summary
      * @return the resource to stop the summary
      */
     public abstract Summary getSummary(String name);
